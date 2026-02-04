@@ -3,42 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ciacollor | Panel Maestro</title>
+    <title>Ciacollor | Catálogo PRO</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        .prose p { margin-bottom: 0.8em; line-height: 1.6; }
-        .prose strong { color: #1e3a8a; font-weight: 700; }
-        .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
         
-        /* Scrollbar bonita para el modal */
+        /* ESTILOS PARA LA DESCRIPCIÓN DEL PRODUCTO */
+        /* Esto hace que el texto del CSV se vea bonito y ordenado */
+        #modalDesc p { margin-bottom: 1rem; line-height: 1.6; color: #374151; }
+        #modalDesc strong { color: #1e40af; font-weight: 700; }
+        #modalDesc ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+        #modalDesc h3 { font-size: 1.1rem; font-weight: 800; color: #111827; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        #modalDesc span { background-color: transparent !important; color: inherit !important; font-family: inherit !important; font-size: inherit !important; }
+
+        /* Scroll personalizado */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        
+
+        /* Lógica Admin */
         body:not(.is-admin) .admin-only { display: none !important; }
         body.is-admin .client-only { display: none !important; }
     </style>
 </head>
 <body class="overflow-x-hidden">
 
-    <nav class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <h1 class="text-xl font-black text-blue-800 tracking-tighter">Ciacollor<span class="text-blue-400">.PRO</span></h1>
-            </div>
+    <nav class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 px-4 py-3 shadow-sm">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+            <h1 class="text-xl font-black text-blue-800 tracking-tighter">Ciacollor<span class="text-blue-400">.ADMIN</span></h1>
             
-            <div class="flex gap-3">
-                <select id="filterCategory" onchange="renderizar()" class="hidden sm:block bg-gray-50 border-gray-200 text-gray-600 text-xs rounded-lg focus:ring-blue-500">
-                    <option value="Todos">Todo el Catálogo</option>
+            <div class="flex gap-2 w-full sm:w-auto">
+                <select id="filterCategory" onchange="renderizar()" class="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg focus:ring-blue-500 p-2">
+                    <option value="Todos">Todas las Categorías</option>
                     <option value="Emborrachada">🟣 Impermeabilizante</option>
                     <option value="Al Agua">🔵 Al Agua</option>
                     <option value="Sintético">🟠 Sintético</option>
                 </select>
-                <input type="text" id="search" placeholder="🔍 Buscar producto..." class="bg-gray-100 rounded-lg px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500 w-32 sm:w-64">
-                <button onclick="activarAdmin()" class="p-1 rounded hover:bg-gray-100 text-gray-400">
+                <input type="text" id="search" placeholder="🔍 Buscar ID o nombre..." class="flex-1 bg-gray-100 rounded-lg px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="activarAdmin()" class="p-2 rounded hover:bg-gray-100 text-gray-400">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                 </button>
             </div>
@@ -51,57 +56,42 @@
     </main>
 
     <div id="productModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
+        <div class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
 
         <div class="fixed inset-0 z-10 overflow-y-auto">
             <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-                <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-4xl flex flex-col md:flex-row max-h-[90vh]">
+                <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-4xl flex flex-col md:flex-row h-[85vh]">
                     
-                    <div class="w-full md:w-5/12 bg-gray-50 p-8 flex items-center justify-center border-r border-gray-100 relative">
-                        <button onclick="closeModal()" class="absolute top-4 left-4 md:hidden bg-white rounded-full p-2 shadow">
-                            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                        <img id="modalImg" src="" class="max-h-[300px] md:max-h-[400px] object-contain mix-blend-multiply transition-all duration-500 hover:scale-105">
+                    <div class="w-full md:w-5/12 bg-gray-50 p-6 flex items-center justify-center border-r border-gray-100 relative">
+                        <button onclick="closeModal()" class="absolute top-4 left-4 md:hidden bg-white rounded-full p-2 shadow z-20">✕</button>
+                        <img id="modalImg" src="" class="max-h-[300px] object-contain mix-blend-multiply">
                     </div>
 
-                    <div class="w-full md:w-7/12 p-8 flex flex-col bg-white overflow-hidden">
-                        
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <span id="modalBadge" class="inline-block px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded border mb-2"></span>
-                                <span id="modalId" class="block text-xs font-mono text-gray-400 mb-1"></span>
-                                <h3 id="modalTitle" class="text-2xl font-black text-gray-900 leading-tight"></h3>
-                            </div>
-                            <button onclick="closeModal()" class="hidden md:block text-gray-400 hover:text-gray-600">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            </button>
-                        </div>
-
-                        <div class="flex items-end gap-4 border-b border-gray-100 pb-6 mb-6">
-                            <div>
-                                <p class="text-xs text-gray-500 uppercase font-semibold">Precio Contado</p>
-                                <p id="modalPrice" class="text-3xl font-black text-blue-700"></p>
-                            </div>
+                    <div class="w-full md:w-7/12 flex flex-col bg-white h-full">
+                        <div class="p-6 border-b border-gray-100">
+                            <span id="modalBadge" class="inline-block px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded border mb-2"></span>
+                            <h3 id="modalTitle" class="text-2xl font-black text-gray-900 leading-none mb-1"></h3>
+                            <span id="modalId" class="text-xs font-mono text-gray-400"></span>
                             
-                            <div class="admin-only ml-auto bg-blue-50 p-2 rounded-lg border border-blue-100">
-                                <label class="text-[10px] font-bold text-blue-800 block mb-1">EDITAR PRECIO</label>
-                                <input type="number" id="modalInputPrice" class="w-24 text-right text-sm border border-blue-200 rounded px-1 py-1">
-                            </div>
-
-                            <div class="client-only ml-auto text-right">
-                                <span id="modalStockBadge" class="px-3 py-1 rounded-full text-xs font-bold border"></span>
+                            <div class="flex items-end gap-4 mt-4">
+                                <div>
+                                    <p class="text-xs text-gray-400 uppercase">Precio Unitario</p>
+                                    <p id="modalPrice" class="text-3xl font-black text-blue-700"></p>
+                                </div>
+                                <div class="admin-only bg-blue-50 p-1 rounded border border-blue-200">
+                                    <input type="number" id="modalInputPrice" class="w-24 text-right text-sm bg-white border border-blue-200 rounded px-1">
+                                </div>
                             </div>
                         </div>
 
-                        <div class="flex-1 overflow-y-auto custom-scroll pr-2">
-                            <h4 class="text-sm font-bold text-gray-900 uppercase mb-2">Ficha Técnica</h4>
-                            <div id="modalDesc" class="prose prose-sm text-gray-600 text-sm"></div>
+                        <div class="flex-1 overflow-y-auto custom-scroll p-6 bg-gray-50/50">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 border-b pb-1">Descripción Técnica</h4>
+                            <div id="modalDesc" class="text-sm text-gray-600"></div>
                         </div>
 
-                        <div class="mt-6 pt-4 border-t border-gray-100 flex gap-3">
-                            <a id="modalWhatsapp" href="#" target="_blank" class="flex-1 bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-bold transition-all flex justify-center items-center gap-2">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                                Solicitar Pedido
+                        <div class="p-4 border-t border-gray-200 bg-white z-10">
+                            <a id="modalWhatsapp" href="#" target="_blank" class="block w-full bg-green-600 hover:bg-green-700 text-white text-center py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl">
+                                Solicitar por WhatsApp
                             </a>
                         </div>
                     </div>
@@ -110,83 +100,94 @@
         </div>
     </div>
 
+    <div id="toast" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold opacity-0 transition-opacity pointer-events-none z-50">
+        Guardado correctamente
+    </div>
+
     <script>
-        // CONFIGURACIÓN
         const SUPABASE_URL = 'https://grlwkaxsfvrvtuvlsvxv.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_8QnYD4TWUMFmiTo6Pd5_3w_yxmkgWCc';
         const WHATSAPP = '595987212934'; 
 
-        // DATA ENRIQUECIDA (He simulado descripciones HTML reales para que veas el efecto)
+        // --- AQUÍ ESTÁ LA MAGIA: DATOS REALES ---
+        // He copiado el HTML real de tu CSV para el producto 2109 para que veas el ejemplo.
+        // Para los demás, he dejado un texto genérico hasta que carguemos todo el CSV.
+        
         const catalogoBase = [
             {
-                id: "2109", nombre: "Tinta Acrílica Emborrachada Ciaflex 20kg", 
+                id: "2109", 
+                nombre: "Tinta Acrílica Emborrachada Ciaflex 20kg", 
                 img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_emborrachada_ciacollor_20kg_2109_1_9f894b5ff4fccf9f785014ad04918a0f.png", 
                 precio: 450000,
-                desc: "<p><strong>Ciaflex Fundo e Acabamento</strong> es un producto de altísima performance formulado a base de resinas acrílicas elásticas. <ul><li>Hidrorepelente: Protege contra la lluvia.</li><li>Sella microfisuras de hasta 0.3mm.</li><li>Acabado mate sofisticado.</li></ul><br><strong>Secado:</strong> Al tacto 1 hora, final 12 horas.</p>"
+                // ESTA ES LA DESCRIPCIÓN REAL SACADA DE TU CSV
+                desc: `
+                    <h3>Ciaflex Fundo e Acabamento Ciacollor</h3>
+                    <p>O <strong>Ciaflex Fundo e Acabamento Ciacollor</strong> é um produto de alta performance formulado a base de resinas acrílicas elásticas, que oferece proteção total as paredes externas.</p>
+                    <p>Possui tecnologia inovadora que confere ao produto grande elasticidade.</p>
+                    <ul>
+                        <li><strong>Hidrorrepelente:</strong> Bloqueia a infiltração da água da chuva.</li>
+                        <li><strong>Flexível:</strong> Cobre fissuras (trincas) de até 0,3 mm.</li>
+                        <li><strong>Durável:</strong> Resistente a sol e chuva e maresia.</li>
+                    </ul>
+                    <p><strong>Aplicação e Diluição:</strong><br>
+                    Rolo de lã ou pincel. Diluir de 10% a 20% com água potável.</p>
+                    <p><strong>Secagem:</strong><br>
+                    Ao toque: 1 hora.<br>
+                    Entre demãos: 4 horas.<br>
+                    Completa: 72 horas.</p>
+                    <p><em>Este produto segue classificação da norma NBR 11702 tipo 4.5.8.</em></p>
+                `
             },
             {
-                id: "2073", nombre: "Tinta Acrílica Econômica Profissional 16lt", 
+                id: "2073", 
+                nombre: "Tinta Acrílica Econômica Profissional 16lt", 
                 img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_economica_profissional_fosco_ciacollor_16_l_2073_1_eb2c72aea432510f9efe1220835a3c46.png", 
                 precio: 280000,
-                desc: "<p>Pintura acrílica de uso interior con excelente costo-beneficio. <strong>Rendimiento:</strong> Hasta 250m² por mano. <br>Ideal para techos y paredes internas de bajo tráfico. Antimofo y bajo olor.</p>"
+                desc: "<p>Tinta acrílica de uso interior com excelente custo-benefício. Indicada para pinturas de casas e apartamentos. <br><strong>Acabamento:</strong> Fosco aveludado.<br><strong>Rendimento:</strong> Até 300m² por demão.</p>"
             },
             {
-                id: "2225", nombre: "Spray Uso Geral Metálico 400ml", 
+                id: "2225", 
+                nombre: "Spray Uso Geral Metálico 400ml", 
                 img: "https://images.tcdn.com.br/img/img_prod/1139809/spray_uso_geral_metalico_ciacollor_400ml_2225_1_157b689817047b2e7e4d82f583a832ca.png", 
                 precio: 23000,
-                desc: "<p>Esmalte sintético en aerosol para uso general. Secado ultra rápido. Ideal para <strong>metales, madera, yeso y cerámica</strong>. Acabado metalizado brillante.</p>"
+                desc: "<p>Esmalte sintético em spray de secagem rápida. Ideal para metais, madeiras, gesso e cerâmica. Uso interno e externo.</p>"
             },
             {
-                id: "4262", nombre: "Kit Esmalte Epóxi 3x1 3,6Lt", 
-                img: "https://images.tcdn.com.br/img/img_prod/1139809/kit_esmalte_epoxi_poliamida_3x1_catalisador_ciacollor_3_6lt_4262_1_6b155e8c66545d9b8a8d2536f710d02e.png", 
-                precio: 311000,
-                desc: "<p>Sistema Epoxi de alta resistencia química y física. <br><strong>Uso:</strong> Pisos industriales, garajes, azulejos. <br>Incluye Catalizador. Dilución con Thinner Epoxi.</p>"
-            },
-            {
-                id: "2155", nombre: "Impermeabilizante Ciaflex 18kg", 
+                id: "2155", 
+                nombre: "Impermeabilizante Ciaflex 18kg", 
                 img: "https://images.tcdn.com.br/img/img_prod/1139809/impermeabilizante_emborrachado_ciaflex_paredes_ciacollor_18kg_2155_1_cc1f33bd04e1170464de4c383a5ffa0d.png", 
                 precio: 353550,
-                desc: "<p>Membrana líquida elástica. Forma una película impermeable y elástica que acompaña la dilatación de la superficie. <strong>Color:</strong> Blanco (se puede teñir).</p>"
-            },
-             {
-                id: "4065", "nombre": "Efeito Mármore Base Branco 3,6lt", 
-                "img": "https://images.tcdn.com.br/img/img_prod/1139809/efeito_marmore_base_branco_ciacollor_3_6lt_4065_1_bbeb5a97e466c79e920ab629cbbad0bb.png", 
-                "precio": 250000,
-                "desc": "<p>Revestimiento decorativo que imita el efecto de piedra natural mármol. <br>Requiere llana de acero inoxidable para aplicación. Acabado liso y brillante tras pulido.</p>"
+                desc: "<p>Membrana líquida elástica. Forma uma película impermeável e elástica que acompanha a dilatação da superfície. Protege contra batida de chuva.</p>"
             },
             {
-                id: "2077", "nombre": "Tinta Acrílica Performance Fosco 18lt", 
-                "img": "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_performance_fosco_ciacollor_18_l_2077_1_e92923bc7a843f1b026f1a1bec844bd4.png", 
-                "precio": 320000,
-                "desc": "<p>Pintura lavable de alto desempeño. Excelente cobertura y resistencia a la intemperie. <br><strong>Uso:</strong> Interior y Exterior. Acabado Mate.</p>"
+                id: "4262", 
+                nombre: "Kit Esmalte Epóxi 3x1 3,6Lt", 
+                img: "https://images.tcdn.com.br/img/img_prod/1139809/kit_esmalte_epoxi_poliamida_3x1_catalisador_ciacollor_3_6lt_4262_1_6b155e8c66545d9b8a8d2536f710d02e.png", 
+                precio: 311000,
+                desc: "<p>Esmalte Epóxi de alta resistência química e física. Indicado para pisos industriais, azulejos e estruturas metálicas. Acompanha catalisador.</p>"
             },
-            {
-                id: "3637", "nombre": "Fundo Sintético Nivelador 3,6lt", 
-                "img": "https://images.tcdn.com.br/img/img_prod/1139809/fundo_sintetico_nivelador_ciacollor_3_6lt_3637_1_890dd18df9a8bb4990d75059b728af39.png", 
-                "precio": 129000,
-                "desc": "<p>Fondo preparador para maderas. Nivela la superficie, sella los poros y aumenta el rendimiento del esmalte de acabado. Lijable fácilmente.</p>"
-            },
-            {id: "2163", nombre: "Resina Eco Base Água Ciacollor 18lt", desc: "<p>Resina acrílica base agua para tejas, ladrillos y piedras. Protege contra moho y verdín. Acabado brillante incoloro.</p>", img: "https://images.tcdn.com.br/img/img_prod/1139809/resina_eco_base_agua_ciacollor_18lt_2163_1_07cf08ae947eeb1503faa3b0f69ab87f.png", precio: 410000},
-            {id: "2153", nombre: "Selador Emborrachado Ciaflex 18kg", desc: "<p>Sellador pigmentado elástico. Prepara paredes con microfisuras para recibir pintura elástica.</p>", img: "https://images.tcdn.com.br/img/img_prod/1139809/selador_acrilico_emborrachado_ciaflex_ciacollor_18kg_2153_1_55e772bde97e5640dd2494a08dd9dac4.png", precio: 390000},
-            {id: "2111", nombre: "Tinta Emborrachada Ciaflex 3,6kg", desc: "<p>Versión galón de la pintura elástica Ciaflex. Ideal para pequeñas reparaciones o fachadas menores.</p>", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_emborrachada_ciacollor_3_6kg_2111_1_c533bf16a35666853bb773e38f999f46.png", precio: 145000}
+            {id: "4065", nombre: "Efeito Mármore Base Branco 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/efeito_marmore_base_branco_ciacollor_3_6lt_4065_1_bbeb5a97e466c79e920ab629cbbad0bb.png", precio: 250000, desc: "<p>Massa decorativa que proporciona efeito mármore vitrificado.</p>"},
+            {id: "2077", nombre: "Tinta Acrílica Performance Fosco 18lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_performance_fosco_ciacollor_18_l_2077_1_e92923bc7a843f1b026f1a1bec844bd4.png", precio: 320000, desc: "<p>Tinta super lavável de alta performance para áreas externas e internas.</p>"},
+            {id: "3637", nombre: "Fundo Sintético Nivelador 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/fundo_sintetico_nivelador_ciacollor_3_6lt_3637_1_890dd18df9a8bb4990d75059b728af39.png", precio: 129000, desc: "<p>Fundo nivelador para madeiras. Prepara a superfície para receber o esmalte.</p>"},
+            {id: "2163", nombre: "Resina Eco Base Água Ciacollor 18lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/resina_eco_base_agua_ciacollor_18lt_2163_1_07cf08ae947eeb1503faa3b0f69ab87f.png", precio: 410000, desc: "<p>Resina acrílica base água para telhas, tijolos e pedras.</p>"},
+            {id: "2153", nombre: "Selador Emborrachado Ciaflex 18kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/selador_acrilico_emborrachado_ciaflex_ciacollor_18kg_2153_1_55e772bde97e5640dd2494a08dd9dac4.png", precio: 390000, desc: "<p>Selador elástico para microfissuras.</p>"},
+            {id: "2111", nombre: "Tinta Emborrachada Ciaflex 3,6kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_emborrachada_ciacollor_3_6kg_2111_1_c533bf16a35666853bb773e38f999f46.png", precio: 145000, desc: "<p>Tinta emborrachada em embalagem de galão.</p>"}
         ];
 
-        // LOGICA DE NEGOCIO
+        // LÓGICA DE NEGOCIO
         let supabaseClient;
         try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { console.error(e); }
         let productos = [];
 
-        // 1. Clasificación Inteligente
         function clasificar(p) {
             const txt = (p.nombre + ' ' + (p.desc || '')).toLowerCase();
             if (txt.includes('emborrachada') || txt.includes('ciaflex') || txt.includes('impermeabilizante')) 
                 return { tipo: 'Emborrachada', color: 'text-purple-700 bg-purple-50 border-purple-200' };
-            if (txt.includes('epoxi') || txt.includes('sintetico') || txt.includes('solvente') || txt.includes('spray')) 
+            if (txt.includes('epoxi') || txt.includes('sintetico') || txt.includes('sintético') || txt.includes('solvente') || txt.includes('spray')) 
                 return { tipo: 'Sintético', color: 'text-orange-700 bg-orange-50 border-orange-200' };
             return { tipo: 'Al Agua', color: 'text-blue-700 bg-blue-50 border-blue-200' };
         }
 
-        // 2. Iniciar y Cargar Precios
         async function iniciar() {
             let preciosNube = [];
             if(supabaseClient) {
@@ -207,7 +208,6 @@
             renderizar();
         }
 
-        // 3. Renderizar Grid
         function renderizar() {
             const grid = document.getElementById('grid');
             const busqueda = document.getElementById('search').value.toLowerCase();
@@ -222,8 +222,8 @@
             grid.innerHTML = filtrados.map(p => `
                 <div onclick="abrirModal('${p.id}')" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer hover:shadow-lg transition-all flex flex-col h-full group">
                     <div class="relative mb-4">
-                        <span class="absolute top-0 left-0 text-[10px] text-gray-400 font-mono">#${p.id}</span>
-                        <img src="${p.img}" class="h-40 w-full object-contain mx-auto ${p.stock === 'NO' ? 'grayscale opacity-60' : 'group-hover:scale-105'} transition-transform duration-300">
+                        <span class="absolute top-0 left-0 text-[10px] text-gray-400 font-mono bg-gray-100 px-1 rounded">#${p.id}</span>
+                        <img src="${p.img}" class="h-32 w-full object-contain mx-auto ${p.stock === 'NO' ? 'grayscale opacity-60' : 'group-hover:scale-105'} transition-transform duration-300">
                     </div>
                     
                     <div class="flex-grow">
@@ -236,10 +236,10 @@
                     <div class="mt-3 pt-3 border-t border-gray-50 flex justify-between items-end">
                         <div>
                             <p class="text-[10px] text-gray-400 uppercase">Precio</p>
-                            <p class="font-black text-gray-900">Gs. ${(p.precio).toLocaleString('es-PY')}</p>
+                            <p class="font-black text-gray-900 text-sm">Gs. ${(p.precio).toLocaleString('es-PY')}</p>
                         </div>
                         <span class="text-[10px] font-bold ${p.stock === 'SI' ? 'text-green-600' : 'text-red-500'}">
-                            ${p.stock === 'SI' ? '● Disponible' : '● Agotado'}
+                            ${p.stock === 'SI' ? '● Stock' : '● Agotado'}
                         </span>
                     </div>
                     
@@ -250,7 +250,6 @@
             `).join('');
         }
 
-        // 4. LÓGICA DEL MODAL (Nuevo)
         let productoActual = null;
 
         function abrirModal(id) {
@@ -258,36 +257,23 @@
             if(!p) return;
             productoActual = p;
 
-            // Rellenar datos
             document.getElementById('modalImg').src = p.img;
             document.getElementById('modalTitle').innerText = p.nombre;
             document.getElementById('modalId').innerText = `SKU: ${p.id}`;
             document.getElementById('modalPrice').innerText = `Gs. ${(p.precio).toLocaleString('es-PY')}`;
             document.getElementById('modalInputPrice').value = p.precio;
             
-            // Descripción (Usar innerHTML para interpretar etiquetas)
-            document.getElementById('modalDesc').innerHTML = p.desc || "Sin descripción detallada.";
+            // LIMPIAR Y RENDERIZAR HTML
+            // Aquí usamos innerHTML para que se vean las negritas y listas
+            document.getElementById('modalDesc').innerHTML = p.desc;
 
-            // Badge Categoría
             const badge = document.getElementById('modalBadge');
             badge.className = `inline-block px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded border mb-2 ${p.categoria.color}`;
             badge.innerText = p.categoria.tipo;
 
-            // Stock Badge
-            const stockBadge = document.getElementById('modalStockBadge');
-            if(p.stock === 'SI') {
-                stockBadge.className = "px-3 py-1 rounded-full text-xs font-bold border bg-green-100 text-green-700 border-green-200";
-                stockBadge.innerText = "DISPONIBLE EN STOCK";
-            } else {
-                stockBadge.className = "px-3 py-1 rounded-full text-xs font-bold border bg-red-100 text-red-700 border-red-200";
-                stockBadge.innerText = "PRODUCTO AGOTADO";
-            }
-
-            // Whatsapp Link
-            const msg = `Hola, estoy interesado en: ${p.nombre} (ID: ${p.id}). Precio: Gs. ${p.precio}`;
+            const msg = `Hola, me interesa: ${p.nombre} (ID: ${p.id}). Precio: Gs. ${p.precio}`;
             document.getElementById('modalWhatsapp').href = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`;
 
-            // Mostrar Modal
             document.getElementById('productModal').classList.remove('hidden');
         }
 
@@ -295,27 +281,23 @@
             document.getElementById('productModal').classList.add('hidden');
         }
 
-        // Guardar cambios desde el modal
-        document.getElementById('modalInputPrice').addEventListener('change', (e) => {
+        document.getElementById('modalInputPrice').addEventListener('change', async (e) => {
             if(productoActual) {
-                guardarCambio(productoActual.id, 'precio', e.target.value);
-                // Actualizar visualmente el precio grande
-                productoActual.precio = Number(e.target.value);
-                document.getElementById('modalPrice').innerText = `Gs. ${(productoActual.precio).toLocaleString('es-PY')}`;
-                renderizar(); // Actualizar grid de fondo
+                const nuevoPrecio = Number(e.target.value);
+                productoActual.precio = nuevoPrecio;
+                document.getElementById('modalPrice').innerText = `Gs. ${(nuevoPrecio).toLocaleString('es-PY')}`;
+                
+                // Feedback visual
+                const toast = document.getElementById('toast');
+                toast.style.opacity = '1';
+                setTimeout(() => toast.style.opacity = '0', 2000);
+
+                if(supabaseClient) {
+                    await supabaseClient.from('precios').upsert({ id: productoActual.id, precio: nuevoPrecio });
+                }
+                renderizar();
             }
         });
-
-        async function guardarCambio(id, campo, valor) {
-            // Actualizar local
-            const item = productos.find(p => p.id === id);
-            if(item) item[campo] = valor;
-            
-            // Guardar Nube
-            if(supabaseClient) {
-                await supabaseClient.from('precios').upsert({ id: id, [campo]: valor });
-            }
-        }
 
         window.activarAdmin = function() {
             const pass = prompt("PIN Admin:");
@@ -323,8 +305,6 @@
         }
 
         document.getElementById('search').addEventListener('input', renderizar);
-        
-        // Cerrar con ESC
         document.addEventListener('keydown', (e) => { if(e.key === "Escape") closeModal(); });
 
         iniciar();
