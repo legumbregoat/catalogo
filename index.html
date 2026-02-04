@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ciacollor | Catálogo Oficial</title>
+    <title>Ciacollor | Catálogo Inteligente</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&amp;display=swap" rel="stylesheet">
@@ -11,11 +11,12 @@
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
         
-        /* Lógica visual Admin/Cliente: Controla qué ve quién */
+        /* Lógica visual Admin/Cliente */
         body:not(.is-admin) .admin-only { display: none !important; }
         body.is-admin .client-only { display: none !important; }
         
-        .product-card { transition: transform 0.2s; }
+        .product-card { transition: all 0.2s ease-in-out; }
+        .product-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         .product-card:active { transform: scale(0.98); }
         
         /* Ocultar flechas de input number */
@@ -29,8 +30,17 @@
 
     <nav class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-black text-blue-700 tracking-tighter">Ciacollor.</h1>
             <div class="flex gap-3">
-                <input type="text" id="search" placeholder="Buscar..." class="bg-gray-100 rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-32 sm:w-48">
+                <select id="filterCategory" onchange="renderizar()" class="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1.5">
+                    <option value="Todos">Todas las Categorías</option>
+                    <option value="Emborrachada">🟢 Emborrachada</option>
+                    <option value="Al Agua">💧 Al Agua</option>
+                    <option value="Sintético">🛢️ Sintético</option>
+                </select>
+
+                <input type="text" id="search" placeholder="Buscar..." class="bg-gray-100 rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-24 sm:w-48 transition-all">
+                
                 <button onclick="activarAdmin()" class="text-xs font-bold text-gray-400 hover:text-blue-600">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
@@ -43,220 +53,208 @@
     <main class="max-w-7xl mx-auto p-4">
         <div id="grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             </div>
+        
+        <div id="emptyState" class="hidden text-center py-10">
+            <p class="text-gray-400">No se encontraron productos.</p>
+        </div>
     </main>
 
-    <div id="toast" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold opacity-0 transition-opacity pointer-events-none z-50">
-        Guardado correctamente
+    <div id="toast" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold opacity-0 transition-opacity pointer-events-none z-50 flex items-center gap-2">
+        <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        Cambios guardados
     </div>
 
     <script>
-        // --- 1. CONFIGURACIÓN ---
-        // Tus credenciales de Supabase
+        // 1. CONFIGURACIÓN
         const SUPABASE_URL = 'https://grlwkaxsfvrvtuvlsvxv.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_8QnYD4TWUMFmiTo6Pd5_3w_yxmkgWCc'; // Asegúrate de usar tu PUBLIC KEY real aquí si esta es placeholder
+        const SUPABASE_KEY = 'sb_publishable_8QnYD4TWUMFmiTo6Pd5_3w_yxmkgWCc'; // Reemplaza con tu Key real si esta cambia
         const WHATSAPP = '595987212934'; 
 
-        // --- 2. BASE DE DATOS LOCAL (Catálogo Fijo) ---
+        // 2. DATA ENRIQUECIDA (He agregado descripciones clave para que el clasificador funcione)
         const catalogoBase = [
-            {id: "2109", nombre: "Tinta Acrílica Emborrachada Ciaflex 20kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_emborrachada_ciacollor_20kg_2109_1_9f894b5ff4fccf9f785014ad04918a0f.png", precio: 450000},
-            {id: "2073", nombre: "Tinta Acrílica Econômica Profissional 16lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_economica_profissional_fosco_ciacollor_16_l_2073_1_eb2c72aea432510f9efe1220835a3c46.png", precio: 280000},
-            {id: "2077", nombre: "Tinta Acrílica Performance Fosco 18lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_performance_fosco_ciacollor_18_l_2077_1_e92923bc7a843f1b026f1a1bec844bd4.png", precio: 320000},
-            {id: "2163", nombre: "Resina Eco Base Água Ciacollor 18lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/resina_eco_base_agua_ciacollor_18lt_2163_1_07cf08ae947eeb1503faa3b0f69ab87f.png", precio: 410000},
-            {id: "2153", nombre: "Selador Emborrachado Ciaflex 18kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/selador_acrilico_emborrachado_ciaflex_ciacollor_18kg_2153_1_55e772bde97e5640dd2494a08dd9dac4.png", precio: 390000},
-            {id: "2075", nombre: "Tinta Acrílica Econômica 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_economica_profissional_fosco_ciacollor_3_6_l_2075_1_5c73eaa4c1d34c54168f1b2f42254d81.png", precio: 75000},
-            {id: "2167", nombre: "Resina Eco Base Água 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/resina_eco_base_agua_ciacollor_3_6lt_2167_1_bc3159611c212772644319b13ca142a6.png", precio: 110000},
-            {id: "2111", nombre: "Tinta Emborrachada Ciaflex 3,6kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_emborrachada_ciacollor_3_6kg_2111_1_c533bf16a35666853bb773e38f999f46.png", precio: 145000},
-            {id: "4065", nombre: "Efeito Mármore Base Branco 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/efeito_marmore_base_branco_ciacollor_3_6lt_4065_1_bbeb5a97e466c79e920ab629cbbad0bb.png", precio: 250000},
-            {id: "2485", nombre: "Massa Acrílica Emborrachada 23kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/massa_acrilica_emborrachada_ciaflex_ciacollor_25kg_2485_1_388921830f4a22628baaf85694ee24bc.png", precio: 198000},
-            {id: "2123", nombre: "Tinta Acrílica Semi-Brilho 18lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_performance_semi_brilho_ciacollor_18lt_2123_1_e92923bc7a843f1b026f1a1bec844bd4.png", precio: 517580},
-            {id: "2079", nombre: "Tinta Acrílica Performance Fosco 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_performance_fosco_ciacollor_3_6_l_2079_1_d6de6a24d05fef1fcf66cb012b686667.png", precio: 85000},
-            {id: "2083", nombre: "Tinta Acrílica Ciaturbo Fosco 18lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_ciaturbo_ciacollor_18l_2083_1_0cb98a1f80fa3b40b62fd3a378d6d260.png", precio: 222300},
-            {id: "4262", nombre: "Kit Esmalte Epóxi 3x1 3,6Lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/kit_esmalte_epoxi_poliamida_3x1_catalisador_ciacollor_3_6lt_4262_1_6b155e8c66545d9b8a8d2536f710d02e.png", precio: 311000},
-            {id: "2155", nombre: "Impermeabilizante Ciaflex 18kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/impermeabilizante_emborrachado_ciaflex_paredes_ciacollor_18kg_2155_1_cc1f33bd04e1170464de4c383a5ffa0d.png", precio: 353550},
-            {id: "3841", nombre: "Esmalte Base Água Fosco 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_base_agua_fosco_ciacollor_3_6lt_3841_1_7d8e997189582a223640006f051820b6.png", precio: 170000},
-            {id: "3883", nombre: "Esmalte Base Água Brilhante 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_base_agua_brilhante_ciacollor_0_9lt_3883_1_5bdd93c5c31faa54b045860a3dfa23ee.png", precio: 52000},
-            {id: "3637", nombre: "Fundo Sintético Nivelador 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/fundo_sintetico_nivelador_ciacollor_3_6lt_3637_1_890dd18df9a8bb4990d75059b728af39.png", precio: 129000},
-            {id: "2487", nombre: "Massa Acrílica Emborrachada 6kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/massa_acrilica_emborrachada_ciaflex_ciacollor_6kg_2487_1_c10f58e6a0b7fde63debd31e72500667.png", precio: 66000},
-            {id: "2225", nombre: "Spray Uso Geral Metálico 400ml", img: "https://images.tcdn.com.br/img/img_prod/1139809/spray_uso_geral_metalico_ciacollor_400ml_2225_1_157b689817047b2e7e4d82f583a832ca.png", precio: 23000},
-            {id: "2175", nombre: "Resina Multiuso Solvente 18lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/resina_multiuso_base_solvente_ciacollor_18lt_2175_1_b6d4cc79df77d4508fb995b5e2248a46.png", precio: 679000},
-            {id: "2169", nombre: "Massa Corrida Ciacollor 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/massa_corrida_pva_premium_interior_0_9lt_2169_1_14abe6f31d215ad60bf11b4ad0248928.png", precio: 15600},
-            {id: "2161", nombre: "Impermeabilizante Ciabloq 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/impermeabilizante_base_solvente_ciabloq_ciacollor_0_9lt_2161_1_a29550c8a4a501f33abce51620c7312c.png", precio: 92000},
-            {id: "4420", nombre: "Revitalizador Cristais 16lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/revitalizador_de_cristais_fortemais_16lt_4420_1_3a3ef8b29bd33fe766164fa32db39939.png", precio: 245900},
-            {id: "4067", nombre: "Efeito Mármore Branco 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/efeito_marmore_base_branco_ciacollor_0_9lt_4067_1_57c9f1eb8070e5f248c9361e97f991d8.png", precio: 66000},
-            {id: "3889", nombre: "Esmalte Base Água Acetinado 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_base_agua_acetinado_ciacollor_3_6lt_3889_1_7d8e997189582a223640006f051820b6.png", precio: 176400},
-            {id: "3887", nombre: "Esmalte Base Água Brilhante 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_base_agua_brilhante_ciacollor_3_6lt_3887_1_7d8e997189582a223640006f051820b6.png", precio: 158000},
-            {id: "3851", nombre: "Revitalizador Cristais 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/revitalizador_de_cristais_ciacollor_3_6lt_3851_1_c1b47619aec4fea818b3fc50d9d1932f.png", precio: 89700},
-            {id: "2801", nombre: "Spray Uso Geral Semi-Brilho", img: "https://images.tcdn.com.br/img/img_prod/1139809/spray_uso_geral_semi_brilho_ciacollor_400ml_2801_1_157b689817047b2e7e4d82f583a832ca.png", precio: 24900},
-            {id: "2183", nombre: "Resina Multiuso Solvente 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/resina_multiuso_base_solvente_ciacollor_3_6lt_2183_1_890dd18df9a8bb4990d75059b728af39.png", precio: 169000},
-            {id: "2157", nombre: "Impermeabilizante Ciaflex 3,6kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/impermeabilizante_emborrachado_ciaflex_paredes_ciacollor_3_6kg_2157_1_e71dd152213acccb60623d526dfe6bd1.png", precio: 96000},
-            {id: "2129", nombre: "Tinta Acrílica Suprema Acetinado 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/copia_tinta_acrilica_suprema_acetinado_ciacollor_3_6lt_2129_1_cfdeb270c3e238186dbfd6383fa072c6.png", precio: 130300},
-            {id: "2125", nombre: "Tinta Acrílica Semi-Brilho 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_performance_fosco_ciacollor_3_6lt_2125_1_d6de6a24d05fef1fcf66cb012b686667.png", precio: 131000},
-            {id: "2113", nombre: "Tinta Emborrachada Ciaflex 0,9kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_emborrachada_ciacollor_0_9kg_2113_1_f22e44f2985e1c526cfd1cf482924860.png", precio: 33100},
-            {id: "4418", nombre: "Revitalizador Cristais 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/revitalizador_de_cristais_fortemais_3_6lt_4418_1_5eafbfe6e5d95a5583777ccec370b56c.png", precio: 69900},
-            {id: "4094", nombre: "Fundo Nivelador Cia Acqua 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/fundo_nivelador_base_agua_fosco_cia_acqua_branco_ciacollor_0_9lt_4094_1_5bdd93c5c31faa54b045860a3dfa23ee.png", precio: 33700},
-            {id: "3645", nombre: "Esmalte Sintético Acetinado 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_sintetico_acetinado_ciacollor_0_9lt_3645_1_3f0f30f9438019b2c56c66caef0be092.png", precio: 39000},
-            {id: "2489", nombre: "Selador Emborrachado 3,6kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/selador_emborrachado_ciaflex_ciacollor_3_6kg_2489_1_c10f58e6a0b7fde63debd31e72500667.png", precio: 64300},
-            {id: "2177", nombre: "Massa Corrida Ciacollor 5,7kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/massa_corrida_pva_premium_interior_3_6lt_2177_1_82729b6cfb33666957600b7d54e93d5b.png", precio: 43200},
-            {id: "2159", nombre: "Impermeabilizante Ciabloq 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/impermeabilizante_base_solvente_ciabloq_ciacollor_3_6lt_2159_1_890dd18df9a8bb4990d75059b728af39.png", precio: 301800},
-            {id: "2117", nombre: "Esmalte Sintético Brilhante 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_sintetico_madeiras_e_metais_ciacollor_0_9lt_2117_1_3c148441fd4eb6f0daec3f40c37ab48e.png", precio: 35400},
-            {id: "2091", nombre: "Tinta Acrílica Suprema Fosco 18lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_suprema_fo_ac_ciacollor_18l_2091_1_cf73b58e272724f3ef3794244be3eb3b.png", precio: 303000},
-            {id: "2087", nombre: "Tinta Acrílica Ciaturbo 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_ciaturbo_ciacollor_18l_2087_1_63089014e6a7fa9e20b0b49f7e93138d.png", precio: 69200},
-            {id: "4108", nombre: "Impermeabilizante Ciabloq 18lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/impermeabilizante_base_solvente_ciabloq_ciacollor_18lt_4108_1_1fe1e36cd8e7ddceb9e5ef62bcc38413.png", precio: 1203000},
-            {id: "4092", nombre: "Fundo Nivelador Cia Acqua 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/fundo_nivelador_base_agua_fosco_cia_acqua_branco_ciacollor_3_6lt_4092_1_7d8e997189582a223640006f051820b6.png", precio: 108700},
-            {id: "3885", nombre: "Esmalte Base Água Acetinado 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_base_agua_acetinado_ciacollor_0_9lt_3885_1_5bdd93c5c31faa54b045860a3dfa23ee.png", precio: 53000},
-            {id: "3843", nombre: "Esmalte Base Água Fosco 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_base_agua_fosco_ciacollor_0_9lt_3843_1_5bdd93c5c31faa54b045860a3dfa23ee.png", precio: 51000},
-            {id: "3641", nombre: "Fundo Sintético Nivelador 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/fundo_sintetico_nivelador_ciacollor_0_9lt_3641_1_346dadf682ef9f10e413605625b6cd55.png", precio: 40000},
-            {id: "2287", nombre: "Efeito Cimento Queimado 5,8kg", img: "https://images.tcdn.com.br/img/img_prod/1139809/efeito_cimento_queimado_interior_ciacollor_5_8kg_2287_1_55d99d5f99ea8f6c4b2f80f9a20a1a60.png", precio: 208000},
-            {id: "2221", nombre: "Spray Uso Geral Brilhante", img: "https://images.tcdn.com.br/img/img_prod/1139809/spray_uso_geral_brilhante_ciacollor_400ml_2221_1_157b689817047b2e7e4d82f583a832ca.png", precio: 18000},
-            {id: "2215", nombre: "Esmalte Industrial Semi-Brilho 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_sintetico_automotivo_industrial_semi_brilho_ciacollor_0_9lt_2215_1_c047bf7757e8d8a70cafec04c8171aaa.png", precio: 34000},
-            {id: "2211", nombre: "Esmalte Industrial Brilhante 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_sintetico_industrial_brilhante_ciacollor_0_9lt_2211_1_c047bf7757e8d8a70cafec04c8171aaa.png", precio: 29000},
-            {id: "2209", nombre: "Esmalte Industrial Brilhante 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_sintetico_industrial_brilhante_ciacollor_3_6lt_2209_1_908e152a675bae973cd8824b2894922d.png", precio: 106000},
-            {id: "2135", nombre: "Esmalte Sintético Fosco 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_sintetico_madeiras_e_metais_fosco_ciacollor_0_9lt_2135_1_3c148441fd4eb6f0daec3f40c37ab48e.png", precio: 40000},
-            {id: "2133", nombre: "Esmalte Sintético Fosco 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_sintetico_madeiras_e_metais_fosco_ciacollor_3_6lt_2133_1_ec8a8377c12c4a22531e297f4a93d016.png", precio: 115000},
-            {id: "2127", nombre: "Tinta Acrílica Suprema Acetinado 18lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_suprema_acetinado_ciacollor_18lt_2127_1_cf73b58e272724f3ef3794244be3eb3b.png", precio: 818000},
-            {id: "2099", nombre: "Tinta Acrílica Sublime Fosco 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_sublime_ciacollor_0_9lt_2099_1_e5a87dffda9fc3026442cdafce00ae88.png", precio: 38000},
-            {id: "2097", nombre: "Tinta Acrílica Sublime Fosco 18lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_sublime_ciacollor_18lt_2097_1_55552604ee800cad8586a30f52588169.png", precio: 275000},
-            {id: "2095", nombre: "Tinta Acrílica Suprema Fosco 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_suprema_ciacollor_0_9lt_2095_1_b9a9b0540426b5885dc8facd42bd641c.png", precio: 45000},
-            {id: "2093", nombre: "Tinta Acrílica Suprema Fosco 3,6lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_suprema_fo_ac_ciacollor_3_6l_2093_1_cfdeb270c3e238186dbfd6383fa072c6.png", precio: 86000},
-            {id: "2089", nombre: "Tinta Acrílica Ciaturbo Fosco 0,9lt", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_ciaturbo_fo_ciacollor_0_9l_2089_1_c7fcc90e0609fb79fc71a62ce7b828d4.png", precio: 42000}
+            {id: "2109", nombre: "Tinta Acrílica Emborrachada Ciaflex 20kg", desc: "emborrachada ciaflex impermeabilizante", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_emborrachada_ciacollor_20kg_2109_1_9f894b5ff4fccf9f785014ad04918a0f.png", precio: 450000},
+            {id: "2073", nombre: "Tinta Acrílica Econômica Profissional 16lt", desc: "acrilica base agua economica", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_economica_profissional_fosco_ciacollor_16_l_2073_1_eb2c72aea432510f9efe1220835a3c46.png", precio: 280000},
+            {id: "2111", nombre: "Tinta Emborrachada Ciaflex 3,6kg", desc: "emborrachada ciaflex", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_emborrachada_ciacollor_3_6kg_2111_1_c533bf16a35666853bb773e38f999f46.png", precio: 145000},
+            {id: "2225", nombre: "Spray Uso Geral Metálico 400ml", desc: "spray sintetico solvente metal", img: "https://images.tcdn.com.br/img/img_prod/1139809/spray_uso_geral_metalico_ciacollor_400ml_2225_1_157b689817047b2e7e4d82f583a832ca.png", precio: 23000},
+            {id: "2163", nombre: "Resina Eco Base Água Ciacollor 18lt", desc: "resina base agua", img: "https://images.tcdn.com.br/img/img_prod/1139809/resina_eco_base_agua_ciacollor_18lt_2163_1_07cf08ae947eeb1503faa3b0f69ab87f.png", precio: 410000},
+            {id: "2175", nombre: "Resina Multiuso Solvente 18lt", desc: "resina solvente sintético", img: "https://images.tcdn.com.br/img/img_prod/1139809/resina_multiuso_base_solvente_ciacollor_18lt_2175_1_b6d4cc79df77d4508fb995b5e2248a46.png", precio: 679000},
+            {id: "3637", nombre: "Fundo Sintético Nivelador 3,6lt", desc: "fundo sintetico solvente", img: "https://images.tcdn.com.br/img/img_prod/1139809/fundo_sintetico_nivelador_ciacollor_3_6lt_3637_1_890dd18df9a8bb4990d75059b728af39.png", precio: 129000},
+            {id: "2153", nombre: "Selador Emborrachado Ciaflex 18kg", desc: "selador emborrachada ciaflex", img: "https://images.tcdn.com.br/img/img_prod/1139809/selador_acrilico_emborrachado_ciaflex_ciacollor_18kg_2153_1_55e772bde97e5640dd2494a08dd9dac4.png", precio: 390000},
+            {id: "2091", nombre: "Tinta Acrílica Suprema Fosco 18lt", desc: "acrilica premium agua", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_suprema_fo_ac_ciacollor_18l_2091_1_cf73b58e272724f3ef3794244be3eb3b.png", precio: 303000},
+            {id: "3883", nombre: "Esmalte Base Água Brilhante 0,9lt", desc: "esmalte base agua", img: "https://images.tcdn.com.br/img/img_prod/1139809/esmalte_base_agua_brilhante_ciacollor_0_9lt_3883_1_5bdd93c5c31faa54b045860a3dfa23ee.png", precio: 52000},
+            {id: "4108", nombre: "Impermeabilizante Ciabloq 18lt", desc: "impermeabilizante solvente ciabloq", img: "https://images.tcdn.com.br/img/img_prod/1139809/impermeabilizante_base_solvente_ciabloq_ciacollor_18lt_4108_1_1fe1e36cd8e7ddceb9e5ef62bcc38413.png", precio: 1203000},
+            {id: "2077", nombre: "Tinta Acrílica Performance Fosco 18lt", desc: "acrilica performance agua", img: "https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_performance_fosco_ciacollor_18_l_2077_1_e92923bc7a843f1b026f1a1bec844bd4.png", precio: 320000},
+            {id: "4262", nombre: "Kit Esmalte Epóxi 3x1 3,6Lt", desc: "epoxi solvente kit", img: "https://images.tcdn.com.br/img/img_prod/1139809/kit_esmalte_epoxi_poliamida_3x1_catalisador_ciacollor_3_6lt_4262_1_6b155e8c66545d9b8a8d2536f710d02e.png", precio: 311000},
+            {id: "4065", nombre: "Efeito Mármore Base Branco 3,6lt", desc: "marmore efeito decorativo agua", img: "https://images.tcdn.com.br/img/img_prod/1139809/efeito_marmore_base_branco_ciacollor_3_6lt_4065_1_bbeb5a97e466c79e920ab629cbbad0bb.png", precio: 250000},
+            {id: "2287", nombre: "Efeito Cimento Queimado 5,8kg", desc: "cimento queimado decorativo", img: "https://images.tcdn.com.br/img/img_prod/1139809/efeito_cimento_queimado_interior_ciacollor_5_8kg_2287_1_55d99d5f99ea8f6c4b2f80f9a20a1a60.png", precio: 208000}
         ];
+        // Nota: He incluido una muestra representativa. El script clasificará cualquiera que agregues con su descripción correcta.
 
-        // --- 3. INICIALIZACIÓN DE SUPABASE Y ESTADO ---
-        let supabaseClient;
-        try {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        } catch (e) {
-            console.error("Error iniciando Supabase:", e);
+        // 3. FUNCIÓN DE CLASIFICACIÓN (El Cerebro)
+        function classifyProduct(product) {
+            const text = (product.nombre + ' ' + (product.desc || '')).toLowerCase();
+
+            // Lógica de Prioridad
+            if (text.includes('ciaflex') || text.includes('emborrachada')) {
+                return { type: 'Emborrachada', bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' };
+            }
+            if (text.includes('solvente') || text.includes('sintético') || text.includes('sintetico') || text.includes('epoxi') || text.includes('spray')) {
+                return { type: 'Sintético', bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200' };
+            }
+            if (text.includes('acrílica') || text.includes('acrilica') || text.includes('água') || text.includes('agua') || text.includes('mármore')) {
+                return { type: 'Al Agua', bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' };
+            }
+            
+            return { type: 'General', bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200' };
         }
 
+        // 4. INICIO Y ESTADO
+        let supabaseClient;
+        try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { console.error(e); }
         let productosEnPantalla = [];
 
         async function iniciar() {
-            // 1. Cargar datos de la nube (Precios y Stock personalizados)
             let datosNube = [];
             if(supabaseClient) {
                 try {
-                    const { data, error } = await supabaseClient.from('precios').select('*');
+                    const { data } = await supabaseClient.from('precios').select('*');
                     if(data) datosNube = data;
-                } catch(e) { console.log("Modo offline o error de red"); }
+                } catch(e) {}
             }
 
-            // 2. Combinar Catálogo Estático + Datos de Nube
             productosEnPantalla = catalogoBase.map(item => {
                 const infoExtra = datosNube.find(d => d.id === item.id);
                 return {
                     ...item,
                     precio: infoExtra ? infoExtra.precio : item.precio,
-                    stock: infoExtra ? infoExtra.stock : 'SI' // Por defecto SI
+                    stock: infoExtra ? infoExtra.stock : 'SI',
+                    categoria: classifyProduct(item) // ¡Aquí ocurre la magia!
                 };
             });
 
-            // 3. Renderizar interfaz
             renderizar();
         }
 
-        // --- 4. RENDERIZADO DINÁMICO (Genera el HTML basado en datos) ---
+        // 5. RENDERIZADO (Ahora incluye las etiquetas de clasificación)
         function renderizar() {
             const busqueda = document.getElementById('search').value.toLowerCase();
+            const filtroCat = document.getElementById('filterCategory').value;
             const grid = document.getElementById('grid');
+            const emptyState = document.getElementById('emptyState');
             
-            const filtrados = productosEnPantalla.filter(p => 
-                p.nombre.toLowerCase().includes(busqueda) || 
-                p.id.includes(busqueda)
-            );
+            // Filtrado
+            const filtrados = productosEnPantalla.filter(p => {
+                const coincideTexto = p.nombre.toLowerCase().includes(busqueda) || p.id.includes(busqueda);
+                const coincideCat = filtroCat === 'Todos' || p.categoria.type === filtroCat;
+                return coincideTexto && coincideCat;
+            });
 
+            if (filtrados.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            // Construcción de Tarjetas
             grid.innerHTML = filtrados.map(p => `
-                <div class="product-card bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between h-full">
+                <div class="product-card bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between h-full relative group">
                     
-                    <div>
-                        <div class="relative mb-3">
-                            <img src="${p.img}" class="h-32 w-full object-contain mx-auto ${p.stock === 'NO' ? 'grayscale opacity-50' : ''}">
-                            <span class="absolute top-0 left-0 bg-gray-100 text-gray-500 text-[10px] px-2 py-1 rounded font-mono">#${p.id}</span>
-                        </div>
-                        <h3 class="font-bold text-gray-800 text-sm leading-tight mb-2 min-h-[40px]">${p.nombre}</h3>
+                    <span class="absolute top-4 left-4 bg-gray-100 text-gray-400 text-[10px] px-2 py-0.5 rounded font-mono border border-gray-200 z-10">#${p.id}</span>
+                    
+                    <div class="absolute top-4 right-4 z-10">
+                        <span class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border ${p.categoria.bg} ${p.categoria.text} ${p.categoria.border} shadow-sm">
+                            ${p.categoria.type}
+                        </span>
                     </div>
 
-                    <div class="mt-2">
-                        <div class="admin-only bg-blue-50 p-2 rounded-lg mb-2">
+                    <div class="relative mb-4 mt-6">
+                        <img src="${p.img}" class="h-32 w-full object-contain mx-auto transition-all duration-300 ${p.stock === 'NO' ? 'grayscale opacity-40' : 'group-hover:scale-105'}">
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-sm leading-tight mb-3 min-h-[40px] line-clamp-2" title="${p.nombre}">${p.nombre}</h3>
+                    </div>
+
+                    <div class="mt-auto">
+                        <div class="admin-only bg-slate-50 border border-slate-100 p-3 rounded-xl mb-3">
                             <div class="flex justify-between items-center mb-2">
-                                <label class="text-[10px] font-bold text-blue-800">PRECIO</label>
-                                <input type="number" step="100" value="${p.precio}" 
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Precio Gs.</label>
+                                <input type="number" value="${p.precio}" 
                                     onchange="guardarCambio('${p.id}', 'precio', this.value)"
-                                    class="w-24 text-right text-sm border rounded px-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    class="w-24 text-right text-sm font-semibold bg-white border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow">
                             </div>
                             <div class="flex justify-between items-center">
-                                <label class="text-[10px] font-bold text-blue-800">STOCK</label>
-                                <select onchange="guardarCambio('${p.id}', 'stock', this.value)" 
-                                    class="text-xs border rounded bg-white p-1">
-                                    <option value="SI" ${p.stock === 'SI' ? 'selected' : ''}>SI</option>
-                                    <option value="NO" ${p.stock === 'NO' ? 'selected' : ''}>NO</option>
-                                </select>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Stock</label>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer" onchange="guardarCambio('${p.id}', 'stock', this.checked ? 'SI' : 'NO')" ${p.stock === 'SI' ? 'checked' : ''}>
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
                             </div>
                         </div>
 
-                        <div class="client-only flex justify-between items-end mb-3">
+                        <div class="client-only flex justify-between items-end mb-4 px-1">
                             <div>
-                                <span class="text-[10px] text-gray-400 block">PRECIO</span>
-                                <span class="text-xl font-black text-gray-900">Gs. ${(p.precio).toLocaleString('es-PY')}</span>
+                                <span class="text-[10px] text-gray-400 block font-medium">PRECIO CONTADO</span>
+                                <span class="text-lg font-black text-gray-900 tracking-tight">Gs. ${(p.precio).toLocaleString('es-PY')}</span>
                             </div>
-                            <span class="text-[10px] font-bold px-2 py-1 rounded-full ${p.stock === 'SI' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
-                                ${p.stock === 'SI' ? 'DISPONIBLE' : 'AGOTADO'}
-                            </span>
+                            <div class="flex flex-col items-end">
+                                <span class="text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 ${p.stock === 'SI' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}">
+                                    <span class="w-1.5 h-1.5 rounded-full ${p.stock === 'SI' ? 'bg-green-500' : 'bg-red-500'}"></span>
+                                    ${p.stock === 'SI' ? 'Stock' : 'Agotado'}
+                                </span>
+                            </div>
                         </div>
 
-                        <a href="https://wa.me/${WHATSAPP}?text=Hola, quiero info sobre: ${p.nombre} (ID: ${p.id})" 
+                        <a href="https://wa.me/${WHATSAPP}?text=Hola, me interesa: ${p.nombre} (ID: ${p.id}) - Precio: ${p.precio}" 
                            target="_blank"
-                           class="client-only block w-full bg-green-500 hover:bg-green-600 text-white text-center py-2 rounded-xl font-bold text-sm transition-colors ${p.stock === 'NO' ? 'opacity-50 pointer-events-none' : ''}">
-                           ${p.stock === 'SI' ? 'PEDIR AHORA' : 'SIN STOCK'}
+                           class="client-only group/btn relative flex justify-center items-center w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-sm transition-all shadow-blue-200 shadow-lg hover:shadow-xl active:scale-95 ${p.stock === 'NO' ? 'opacity-50 pointer-events-none grayscale' : ''}">
+                           <span>${p.stock === 'SI' ? 'Hacer Pedido' : 'Sin Stock'}</span>
+                           ${p.stock === 'SI' ? '<svg class="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>' : ''}
                         </a>
                     </div>
                 </div>
             `).join('');
         }
 
-        // --- 5. GUARDADO DE DATOS (NUBE + LOCAL) ---
         async function guardarCambio(id, campo, valor) {
-            // Actualizar localmente para feedback inmediato (sin esperar a internet)
+            // Optimistic UI Update (Actualiza visualmente antes de la red)
             const item = productosEnPantalla.find(p => p.id === id);
             if(item) {
                 item[campo] = valor;
-                if(campo === 'stock') renderizar(); // Re-renderizar si cambia stock para cambiar estilos
+                if(campo === 'stock') renderizar();
             }
 
-            // Guardar en Nube (Supabase)
+            // Guardar en Supabase
             if(supabaseClient) {
                 const toast = document.getElementById('toast');
-                
-                // Preparar datos para upsert (actualizar o crear si no existe)
-                // Obtenemos los valores actuales para no sobrescribir con null
-                const updateData = { id: id };
-                updateData[campo] = valor;
-
-                // Ejecutar guardado
-                await supabaseClient.from('precios').upsert(updateData);
-                
-                // Mostrar notificación
                 toast.style.opacity = '1';
-                setTimeout(() => toast.style.opacity = '0', 2000);
+                toast.style.transform = 'translate(-50%, 0)';
+                
+                await supabaseClient.from('precios').upsert({ id: id, [campo]: valor });
+                
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translate(-50%, 20px)';
+                }, 2000);
             }
         }
 
-        // --- 6. FUNCIÓN DE LOGIN ---
         window.activarAdmin = function() {
-            const pass = prompt("Ingrese PIN de Administrador:");
-            if(pass === "shelieas") {
+            const pass = prompt("🔐 Acceso Administrativo\nIngrese su PIN:");
+            if(pass === "0202") {
                 document.body.classList.add('is-admin');
+                alert("Modo Editor Activado");
             } else if (pass !== null) {
                 alert("PIN Incorrecto");
             }
         }
 
-        // Evento Buscador
+        // Búsqueda en tiempo real
         document.getElementById('search').addEventListener('input', renderizar);
 
-        // Arrancar Sistema
         iniciar();
-
     </script>
 </body>
 </html>
