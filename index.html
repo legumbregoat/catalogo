@@ -3,98 +3,415 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ciacollor | Catálogo PRO</title>
+    <title>Ciacollor Admin Cloud</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Estilos Base */
+        body { font-family: 'Segoe UI', system-ui, sans-serif; }
+        body::-webkit-scrollbar { width: 6px; }
+        body::-webkit-scrollbar-track { background: #f1f1f1; }
+        body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        /* Switch Toggle */
+        .toggle-checkbox:checked { right: 0; border-color: #10B981; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #10B981; }
+        
+        /* Loader */
+        .loader-spin { border: 3px solid #e2e8f0; border-top: 3px solid #3b82f6; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .hidden-visually { opacity: 0; visibility: hidden; pointer-events: none; }
+        .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 300ms; }
+    </style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <nav class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <div class="flex items-center gap-2">
-                <h1 class="text-2xl font-black text-blue-800 tracking-tighter">Ciacollor<span class="text-blue-400">.PY</span></h1>
+    <div id="loginOverlay" class="fixed inset-0 bg-slate-900 z-[9999] flex items-center justify-center p-4 transition-all duration-500">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-sm border border-slate-100">
+            <div class="text-center mb-8">
+                <div class="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-cloud text-3xl text-blue-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800">Ciacollor Admin</h2>
+                <p class="text-sm text-slate-400 mt-1">Identifícate para gestionar</p>
             </div>
             
-            <div class="flex gap-2 w-full sm:w-auto">
-                <select id="filterCategory" class="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg focus:ring-blue-500 p-2 cursor-pointer">
-                    <option value="Todos">Todas las Categorías</option>
-                    <option value="Emborrachada">🟣 Impermeabilizante</option>
-                    <option value="Al Agua">🔵 Al Agua</option>
-                    <option value="Sintético">🟠 Sintético</option>
-                </select>
-                <input type="text" id="search" placeholder="🔍 Buscar..." class="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all">
-                <button id="btnAdmin" class="p-2 rounded hover:bg-gray-100 text-gray-400 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            <form id="loginForm" class="space-y-5" onsubmit="handleLogin(event)">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Usuario</label>
+                    <input type="text" id="userInput" placeholder="Ej: Israel" class="w-full px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
+                    <input type="password" id="passInput" placeholder="••••" class="w-full px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" required>
+                </div>
+                <button type="submit" class="w-full bg-slate-800 text-white py-3.5 rounded-lg hover:bg-slate-700 font-semibold shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5">
+                    Acceder al Sistema
                 </button>
-            </div>
+                <p id="loginError" class="text-red-500 text-sm font-medium text-center mt-3 hidden flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation"></i> Contraseña incorrecta
+                </p>
+            </form>
         </div>
-    </nav>
+    </div>
 
-    <main class="max-w-7xl mx-auto p-4 min-h-screen pb-24">
-        <div id="grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            </div>
+    <div id="appInterface" class="flex-grow flex flex-col hidden opacity-0 transition-opacity duration-700">
         
-        <div id="emptyState" class="hidden text-center py-20">
-            <p class="text-gray-400 text-lg">No encontramos productos con ese nombre.</p>
-        </div>
-    </main>
-
-    <a href="https://wa.me/595987212934?text=Hola,%20quisiera%20consultar%20sobre%20pinturas%20Ciacollor" target="_blank" class="fixed bottom-6 right-6 z-40 bg-green-500 hover:bg-green-600 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center justify-center">
-        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-    </a>
-
-    <div id="productModal" class="fixed inset-0 z-50 hidden opacity-0 transition-opacity duration-300" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal()"></div>
-        <div class="fixed inset-0 z-10 overflow-y-auto">
-            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-                <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full sm:max-w-4xl flex flex-col md:flex-row h-[85vh] md:h-[600px]">
+        <header class="bg-white shadow-sm sticky top-0 z-40 border-b border-slate-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row items-center justify-between h-auto md:h-16 py-3 md:py-0 gap-3">
                     
-                    <div class="w-full md:w-5/12 bg-gray-50 p-6 flex items-center justify-center border-r border-gray-100 relative">
-                        <button onclick="closeModal()" class="absolute top-4 left-4 md:hidden bg-white/80 rounded-full p-2 shadow z-20">✕</button>
-                        <img id="modalImg" src="" class="max-h-[250px] md:max-h-[350px] object-contain mix-blend-multiply transition-transform hover:scale-105">
+                    <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
+                        <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition border border-blue-200">
+                            <i class="fa-solid fa-file-csv"></i> 
+                            <span class="hidden sm:inline">Cargar</span> CSV
+                            <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+                        </label>
+                        
+                        <div id="syncStatus" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200">
+                            <i class="fa-solid fa-circle text-[8px] text-slate-400"></i>
+                            <span class="text-xs font-mono text-slate-500">Desconectado</span>
+                        </div>
+                    </div>
+                    
+                    <div class="relative w-full md:w-96 group">
+                        <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition"></i>
+                        <input type="text" id="searchInput" placeholder="Buscar por nombre, código..." 
+                            class="w-full pl-11 pr-4 py-2.5 rounded-full border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition shadow-sm">
                     </div>
 
-                    <div class="w-full md:w-7/12 flex flex-col bg-white h-full">
-                        <div class="p-6 border-b border-gray-100">
-                            <span id="modalBadge" class="inline-block px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded border mb-2"></span>
-                            <h3 id="modalTitle" class="text-xl md:text-2xl font-black text-gray-900 leading-none mb-1"></h3>
-                            <span id="modalId" class="text-xs font-mono text-gray-400"></span>
-                            
-                            <div class="flex items-end gap-4 mt-4">
-                                <div>
-                                    <p class="text-xs text-gray-400 uppercase font-semibold">Precio Contado</p>
-                                    <p id="modalPrice" class="text-3xl font-black text-blue-700"></p>
-                                </div>
-                                <div class="admin-only ml-auto bg-blue-50 p-1 rounded border border-blue-200">
-                                    <label class="block text-[8px] font-bold text-blue-800 text-center">ADMIN</label>
-                                    <input type="number" id="modalInputPrice" class="w-24 text-right text-sm bg-white border border-blue-200 rounded px-1 outline-none">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex-1 overflow-y-auto custom-scroll p-6 bg-slate-50/30">
-                            <div id="modalDesc" class="text-sm text-gray-600 prose-sm"></div>
-                        </div>
-
-                        <div class="p-4 border-t border-gray-200 bg-white z-10">
-                            <a id="modalWhatsapp" href="#" target="_blank" class="flex items-center justify-center w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-green-200 gap-2">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                                PEDIR ESTE PRODUCTO AHORA
-                            </a>
-                        </div>
+                    <div class="hidden md:flex items-center gap-3">
+                        <span id="displayUser" class="text-xs font-bold text-slate-400 uppercase tracking-wider"></span>
+                        <button onclick="recargarDatosNube()" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition" title="Actualizar Precios">
+                            <i class="fa-solid fa-rotate"></i>
+                        </button>
                     </div>
                 </div>
+
+                <div class="flex gap-2 py-3 overflow-x-auto no-scrollbar" id="filterContainer">
+                    <button onclick="filterCategory('all')" class="filter-btn active px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition bg-slate-800 text-white shadow-md transform scale-105" data-filter="all">Todos</button>
+                    <button onclick="filterCategory('Emborrachada')" class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition bg-white text-slate-500 border border-slate-200 hover:border-purple-300 hover:bg-purple-50" data-filter="Emborrachada">Emborrachada</button>
+                    <button onclick="filterCategory('Al Agua')" class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition bg-white text-slate-500 border border-slate-200 hover:border-blue-300 hover:bg-blue-50" data-filter="Al Agua">Al Agua</button>
+                    <button onclick="filterCategory('Sintético')" class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition bg-white text-slate-500 border border-slate-200 hover:border-orange-300 hover:bg-orange-50" data-filter="Sintético">Sintético</button>
+                </div>
             </div>
-        </div>
+        </header>
+
+        <main class="flex-grow p-4 sm:p-6 bg-slate-50">
+            <div id="productGrid" class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                <div class="col-span-full flex flex-col items-center justify-center py-24 text-slate-300">
+                    <div class="bg-white p-6 rounded-full shadow-sm mb-4">
+                        <i class="fa-solid fa-cloud-arrow-up text-5xl text-blue-100"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-slate-600">Comienza tu gestión</h3>
+                    <p class="text-sm">Sube el archivo CSV para cargar las fotos y descripciones</p>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <div id="toast" class="fixed top-5 right-5 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-xl text-sm font-bold opacity-0 transition-all duration-300 transform translate-x-full z-50 flex items-center gap-3">
-        <div class="w-2 h-2 bg-green-400 rounded-full"></div>
-        Cambios guardados
-    </div>
+    <script>
+        // --- CONFIGURACIÓN CRÍTICA ---
+        const SUPABASE_URL = 'https://grlwkaxsfvrvtuvlsvxv.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_8QnYD4TWUMFmiTo6Pd5_3w_yxmkgWCc';
+        const WHATSAPP_TARGET = '595987212934';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    <script src="script.js"></script>
+        const CONFIG_SEC = {
+            passHash: "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4", // "1234"
+            user: "Admin"
+        };
+
+        let globalProducts = [];
+        let dbInventory = {};
+        let currentFilter = 'all';
+
+        // --- 1. GESTIÓN DE DATOS (Conexión Supabase) ---
+        
+        async function fetchInventory() {
+            const statusDiv = document.getElementById('syncStatus');
+            statusDiv.innerHTML = '<div class="loader-spin"></div><span class="text-xs font-bold text-blue-600">Sincronizando...</span>';
+            
+            try {
+                // Consulta a tabla 'precios'
+                const { data, error } = await supabase.from('precios').select('*');
+                
+                if (error) throw error;
+                
+                dbInventory = {};
+                data.forEach(item => {
+                    // Mapeo Crítico: 'SI' -> true, 'NO' -> false
+                    dbInventory[item.id] = { 
+                        precio: item.precio, 
+                        stock: item.stock === 'SI' 
+                    };
+                });
+
+                statusDiv.innerHTML = '<i class="fa-solid fa-wifi text-green-500 text-[10px]"></i><span class="text-xs font-bold text-green-700">En Línea</span>';
+                console.log(`📦 Inventario cargado: ${data.length} productos`);
+                
+                if (globalProducts.length > 0) applyFilters();
+
+            } catch (err) {
+                console.error("Error Supabase:", err);
+                statusDiv.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i><span class="text-xs text-red-600">Error Red</span>';
+            }
+        }
+
+        async function saveToCloud(id, field, value, productName) {
+            // Feedback Optimista UI
+            const inputElement = field === 'precio' ? document.getElementById(`price-${id}`) : null;
+            if(inputElement) {
+                inputElement.classList.remove('text-slate-700');
+                inputElement.classList.add('text-orange-500');
+            }
+
+            // Preparar datos para DB (SI/NO)
+            let valToSend = value;
+            if (field === 'stock') {
+                valToSend = value ? 'SI' : 'NO';
+            }
+
+            // Recuperar datos actuales para no sobrescribir con null
+            const currentDB = dbInventory[id] || { precio: 0, stock: true };
+            
+            const payload = {
+                id: id,
+                editor: CONFIG_SEC.user, // Auditoría: ¿Quién fue?
+                updated_at: new Date()   // Auditoría: ¿Cuándo?
+            };
+
+            if (field === 'precio') {
+                payload.precio = parseFloat(value);
+                // Si no hay dato en memoria, asumimos SI
+                payload.stock = (dbInventory[id] ? (dbInventory[id].stock ? 'SI' : 'NO') : 'SI'); 
+            } else {
+                payload.stock = valToSend;
+                payload.precio = currentDB.precio;
+            }
+
+            try {
+                // Guardar en tabla 'precios'
+                const { error } = await supabase.from('precios').upsert(payload);
+                if (error) throw error;
+
+                // Actualizar Memoria Local
+                if (!dbInventory[id]) dbInventory[id] = {};
+                if (field === 'precio') dbInventory[id].precio = parseFloat(value);
+                if (field === 'stock') dbInventory[id].stock = value;
+
+                // Feedback Éxito
+                if(inputElement) {
+                    inputElement.classList.remove('text-orange-500');
+                    inputElement.classList.add('text-green-600');
+                    setTimeout(() => {
+                        inputElement.classList.remove('text-green-600');
+                        inputElement.classList.add('text-slate-700');
+                    }, 1500);
+                }
+
+                // WhatsApp
+                notifyWhatsApp(productName, field, value);
+
+            } catch (err) {
+                alert("Error al guardar: " + err.message);
+                if(inputElement) inputElement.classList.add('text-red-600');
+            }
+        }
+
+        function notifyWhatsApp(name, type, value) {
+            // Confirmación suave
+            if(!confirm(`Confirmar cambio en ${name} y notificar al grupo?`)) return;
+
+            const valStr = type === 'precio' ? `R$ ${value}` : (value ? 'DISPONIBLE' : 'AGOTADO');
+            const icon = type === 'precio' ? '💰' : '📦';
+            const statusIcon = value || type === 'precio' ? '✅' : '❌';
+            
+            const msg = `*REPORTE CIACOLLOR* ${statusIcon}%0A` +
+                        `-----------------------------%0A` +
+                        `👷‍♂️ *Editor:* ${CONFIG_SEC.user}%0A` +
+                        `🎨 *Producto:* ${name}%0A` +
+                        `${icon} *${type.toUpperCase()}:* ${valStr}%0A` +
+                        `🕐 *Hora:* ${new Date().toLocaleTimeString()}`;
+            
+            window.open(`https://wa.me/${WHATSAPP_TARGET}?text=${msg}`, '_blank');
+        }
+
+        // --- 2. PROCESAMIENTO CSV ---
+        function processCSV(text) {
+            const rows = [];
+            let r = [], c = '', q = false;
+            for (let i = 0; i < text.length; i++) {
+                let char = text[i], next = text[i+1];
+                if (char === '"' && next === '"') { c += '"'; i++; }
+                else if (char === '"') q = !q;
+                else if (char === ',' && !q) { r.push(c); c = ''; }
+                else if ((char === '\r' || char === '\n') && !q) {
+                    if (char === '\r' && next === '\n') i++;
+                    if (c || r.length) r.push(c);
+                    if (r.length) rows.push(r);
+                    r = []; c = '';
+                } else c += char;
+            }
+            if (c || r.length) { r.push(c); rows.push(r); }
+            
+            globalProducts = rows.slice(1).map(row => {
+                if(!row[0]) return null;
+                const id = row[0];
+                const name = (row[1] || '').trim();
+                const desc = (row[6] || '').toLowerCase();
+                
+                // Clasificación Inteligente
+                let cat = 'Otros';
+                const nameLow = name.toLowerCase();
+                if (nameLow.includes('ciaflex') || nameLow.includes('emborrachada') || desc.includes('emborrachada')) cat = 'Emborrachada';
+                else if (nameLow.includes('acrílica') || nameLow.includes('água') || desc.includes('limpeza com água')) cat = 'Al Agua';
+                else if (nameLow.includes('sintético') || nameLow.includes('solvente')) cat = 'Sintético';
+
+                return {
+                    id: id,
+                    name: name,
+                    image: row[5] || 'https://via.placeholder.com/150?text=Sin+Foto',
+                    category: cat,
+                    description: desc
+                };
+            }).filter(Boolean);
+
+            applyFilters();
+        }
+
+        // --- 3. RENDERIZADO UI ---
+        function renderGrid(products) {
+            const grid = document.getElementById('productGrid');
+            grid.innerHTML = '';
+
+            products.forEach(p => {
+                // Fusión de Datos: Supabase Manda
+                const dbData = dbInventory[p.id];
+                const finalPrice = dbData ? dbData.precio : 0;
+                const finalStock = dbData ? dbData.stock : true;
+
+                // Estilos por Categoría
+                let colorClass = 'bg-slate-100 text-slate-600';
+                if(p.category === 'Emborrachada') colorClass = 'bg-purple-100 text-purple-700 border-purple-200';
+                if(p.category === 'Al Agua') colorClass = 'bg-blue-100 text-blue-700 border-blue-200';
+                if(p.category === 'Sintético') colorClass = 'bg-orange-100 text-orange-700 border-orange-200';
+
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden group";
+                
+                card.innerHTML = `
+                    <div class="p-4 flex gap-4 relative">
+                        <div class="w-20 h-20 flex-shrink-0 bg-slate-50 rounded-lg p-1 border border-slate-100">
+                            <img src="${p.image}" class="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-300" loading="lazy">
+                        </div>
+                        <div class="min-w-0 flex-grow">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${colorClass}">${p.category}</span>
+                                <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1 rounded">#${p.id}</span>
+                            </div>
+                            <h3 class="text-sm font-bold text-slate-800 leading-tight mb-1 line-clamp-2" title="${p.name}">${p.name}</h3>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-auto bg-slate-50 px-4 py-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                        <div class="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-400 transition-colors">
+                            <label class="block text-[9px] text-slate-400 font-bold uppercase">Precio R$</label>
+                            <input type="number" id="price-${p.id}" value="${finalPrice}" step="0.01"
+                                class="w-full text-base font-bold text-slate-700 bg-transparent outline-none p-0"
+                                onchange="saveToCloud('${p.id}', 'precio', this.value, '${p.name.replace(/'/g, "")}')">
+                        </div>
+
+                        <div class="flex flex-col items-end">
+                             <label class="text-[9px] text-slate-400 font-bold uppercase mb-1">Stock</label>
+                             <div class="relative inline-block w-11 align-middle select-none">
+                                <input type="checkbox" id="toggle-${p.id}" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-2 appearance-none cursor-pointer border-slate-300 transition-all duration-300 shadow-sm" 
+                                ${finalStock ? 'checked' : ''} 
+                                onchange="saveToCloud('${p.id}', 'stock', this.checked, '${p.name.replace(/'/g, "")}')"/>
+                                <label for="toggle-${p.id}" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-200 cursor-pointer transition-colors duration-300"></label>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // --- 4. UTILIDADES & FILTROS ---
+        function filterCategory(cat) {
+            currentFilter = cat;
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                if (b.dataset.filter === cat) {
+                    b.className = "filter-btn active px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition bg-slate-800 text-white shadow-md transform scale-105";
+                } else {
+                    b.className = "filter-btn px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition bg-white text-slate-500 border border-slate-200 hover:bg-slate-50";
+                }
+            });
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = globalProducts.filter(p => {
+                const matchCat = currentFilter === 'all' || p.category === currentFilter;
+                const matchSearch = p.name.toLowerCase().includes(term) || p.id.includes(term);
+                return matchCat && matchSearch;
+            });
+            renderGrid(filtered);
+        }
+
+        function recargarDatosNube() { fetchInventory(); }
+
+        // --- 5. LOGIN ---
+        async function generarHash(texto) {
+            const msgBuffer = new TextEncoder().encode(texto);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('userInput').value;
+            const pass = document.getElementById('passInput').value;
+            const pHash = await generarHash(pass);
+            
+            if (pHash === CONFIG_SEC.passHash) {
+                // Éxito
+                CONFIG_SEC.user = user; 
+                document.getElementById('displayUser').innerText = user;
+                
+                const overlay = document.getElementById('loginOverlay');
+                const app = document.getElementById('appInterface');
+                
+                overlay.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                    app.classList.remove('hidden');
+                    setTimeout(() => app.classList.remove('opacity-0'), 50);
+                }, 500);
+                
+                fetchInventory();
+            } else {
+                const err = document.getElementById('loginError');
+                err.classList.remove('hidden');
+                err.parentElement.classList.add('animate-pulse');
+                setTimeout(() => err.parentElement.classList.remove('animate-pulse'), 500);
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+        document.getElementById('csvFileInput').addEventListener('change', e => {
+            const f = e.target.files[0];
+            if(!f) return;
+            const r = new FileReader();
+            r.onload = e => processCSV(e.target.result);
+            r.readAsText(f);
+        });
+
+    </script>
 </body>
 </html>
