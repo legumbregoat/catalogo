@@ -3,181 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stock Ciacollor</title>
+    <title>Catálogo Ciacollor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        
+        /* Switch iOS optimizado */
         .toggle-checkbox:checked { right: 0; border-color: #10B981; }
         .toggle-checkbox:checked + .toggle-label { background-color: #10B981; }
-        /* Optimización Móvil */
-        .touch-target { min-height: 44px; min-width: 44px; }
-        input[type="number"] { font-size: 16px; /* Evita zoom en iOS */ }
-        /* Ocultar scrollbar pero permitir scroll */
+        
+        /* Scroll invisible pero funcional */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Loader */
+        .loader {
+            border-top-color: #3B82F6;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="pb-24 select-none">
+<body class="pb-32 text-slate-800">
 
-    <div id="loader-screen" class="fixed inset-0 bg-gray-100 z-[60] flex flex-col items-center justify-center p-6 text-center">
-        <div class="bg-white p-6 rounded-2xl shadow-lg max-w-sm w-full">
-            <i class="ph-fill ph-files text-4xl text-blue-600 mb-3"></i>
-            <h2 class="text-lg font-bold text-gray-800 mb-2">Cargar Catálogo</h2>
-            <p class="text-sm text-gray-500 mb-4">El navegador requiere permiso para leer tu archivo localmente.</p>
-            
-            <label class="flex items-center justify-center w-full px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold cursor-pointer active:scale-95 transition-transform">
-                <i class="ph-bold ph-upload-simple mr-2"></i> Seleccionar catalogo.csv
-                <input type="file" id="csv-upload" accept=".csv" class="hidden">
-            </label>
-            <p id="error-msg" class="text-xs text-red-500 mt-3 hidden"></p>
-        </div>
+    <div id="loader" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
+        <h2 class="text-center text-gray-600 text-sm font-semibold">Leyendo CSV...</h2>
+        <p id="error-msg" class="text-red-500 text-xs mt-2 hidden text-center px-4"></p>
     </div>
 
-    <div id="main-app" class="hidden opacity-0 transition-opacity duration-500">
+    <div id="app" class="hidden opacity-0 transition-opacity duration-700">
         
-        <header class="bg-white shadow-sm sticky top-0 z-40 pb-2">
-            <div class="max-w-md mx-auto px-4 pt-3">
-                <div class="flex justify-between items-center mb-2">
+        <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40">
+            <div class="max-w-2xl mx-auto px-4 py-3">
+                <div class="flex justify-between items-center mb-3">
                     <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                            <i class="ph-fill ph-paint-bucket"></i>
+                        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                            <i class="ph-bold ph-paint-bucket"></i>
                         </div>
-                        <h1 class="font-bold text-gray-800">Ciacollor</h1>
+                        <div>
+                            <h1 class="font-bold text-lg leading-none text-slate-900">Ciacollor</h1>
+                            <p class="text-[10px] text-slate-500 font-medium">Panel de Stock</p>
+                        </div>
                     </div>
-                    <span id="total-count" class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-md font-mono">0</span>
+                    <span id="counter" class="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-1 rounded-md border border-slate-200">0</span>
                 </div>
 
-                <div class="relative">
-                    <i class="ph ph-magnifying-glass absolute left-3 top-3 text-gray-400 text-lg"></i>
+                <div class="relative group">
+                    <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
                     <input type="text" id="search" 
-                        class="w-full bg-gray-100 text-gray-800 rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-sm text-sm"
-                        placeholder="Buscar producto...">
+                        class="w-full bg-slate-100/50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder-slate-400"
+                        placeholder="Buscar producto, código o uso...">
                 </div>
 
                 <div class="flex gap-2 mt-3 overflow-x-auto no-scrollbar pb-1">
-                    <button onclick="setFilter('all')" class="filter-chip active px-4 py-1.5 rounded-full text-xs font-bold bg-gray-800 text-white whitespace-nowrap transition-colors">Todos</button>
-                    <button onclick="setFilter('Emborrachada')" class="filter-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white text-gray-600 border border-gray-200 whitespace-nowrap transition-colors">Emborrachada</button>
-                    <button onclick="setFilter('Al Agua')" class="filter-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white text-gray-600 border border-gray-200 whitespace-nowrap transition-colors">Al Agua</button>
-                    <button onclick="setFilter('Sintético')" class="filter-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white text-gray-600 border border-gray-200 whitespace-nowrap transition-colors">Sintético</button>
+                    <button onclick="setFilter('all')" class="filter-chip active px-4 py-1.5 rounded-full text-xs font-bold bg-slate-800 text-white whitespace-nowrap transition-all shadow-sm">Todos</button>
+                    <button onclick="setFilter('Emborrachada')" class="filter-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200 whitespace-nowrap transition-all hover:border-slate-300">Emborrachada</button>
+                    <button onclick="setFilter('Al Agua')" class="filter-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200 whitespace-nowrap transition-all hover:border-slate-300">Al Agua</button>
+                    <button onclick="setFilter('Sintético')" class="filter-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200 whitespace-nowrap transition-all hover:border-slate-300">Sintético</button>
                 </div>
             </div>
         </header>
 
-        <main class="max-w-md mx-auto px-3 py-4">
-            <div id="grid" class="grid grid-cols-1 gap-3">
+        <main class="max-w-2xl mx-auto px-4 py-6">
+            <div id="grid" class="grid grid-cols-1 gap-4">
                 </div>
         </main>
     </div>
 
     <script>
-        // --- CONFIGURACIÓN ---
-        const CSV_FILENAME = 'catalogo.csv'; 
+        // URL DEL CSV (Usa timestamp para evitar caché agresivo de GitHub)
+        const CSV_URL = 'catalogo.csv?v=' + new Date().getTime();
+        
         let products = [];
         let currentFilter = 'all';
 
-        // --- 1. CARGA DE DATOS ---
-        
-        // Intentar carga automática al inicio
-        window.addEventListener('DOMContentLoaded', () => {
-            fetch(CSV_FILENAME)
-                .then(response => {
-                    if (!response.ok) throw new Error("No se pudo cargar auto");
-                    return response.text();
-                })
-                .then(csvText => processData(csvText))
-                .catch(err => {
-                    console.log("Modo servidor falló, esperando carga manual.", err);
-                    // Si falla (ej. abriendo localmente), mostramos la pantalla de carga manual
-                });
-        });
-
-        // Carga Manual (Input File)
-        document.getElementById('csv-upload').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                processData(e.target.result);
-            };
-            reader.readAsText(file);
-        });
-
-        function processData(csvText) {
+        // 1. INICIAR CARGA
+        window.addEventListener('DOMContentLoaded', async () => {
             try {
-                products = parseCSV(csvText);
-                initApp();
-            } catch (e) {
-                document.getElementById('error-msg').textContent = "Error en el formato del CSV.";
-                document.getElementById('error-msg').classList.remove('hidden');
+                const response = await fetch(CSV_URL);
+                if (!response.ok) throw new Error("No se encontró el archivo catalogo.csv");
+                
+                // Detectar codificación (Excel a veces usa ISO-8859-1 o UTF-8 con BOM)
+                const buffer = await response.arrayBuffer();
+                const decoder = new TextDecoder('utf-8');
+                const csvText = decoder.decode(buffer);
+                
+                parseAndRender(csvText);
+
+            } catch (error) {
+                document.querySelector('.loader').classList.add('hidden');
+                const msg = document.getElementById('error-msg');
+                msg.textContent = `Error: ${error.message}. Asegúrate de subir 'catalogo.csv' al mismo lugar que este html.`;
+                msg.classList.remove('hidden');
             }
-        }
+        });
 
-        // --- 2. PARSEADOR CSV OPTIMIZADO ---
-        function parseCSV(text) {
-            const lines = text.split('\n').filter(l => l.trim() !== '');
-            const data = [];
+        // 2. PARSEADOR CSV ROBUSTO (Maneja comillas y saltos de línea)
+        function parseAndRender(text) {
+            // Regex mágica para CSV que respeta comillas dobles internas
+            const pattern = /(".*?"|[^",\s]+)(?=\s*,|\s*$)/g; 
             
-            // Empezamos en i=1 para saltar cabecera
+            // Separar líneas, quitando vacías
+            const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+            
+            // Empezamos en i=1 para saltar la cabecera
+            // Índices basados en tu CSV nuevo:
+            // 0:ID, 1:Nombre, 2:Precio, 3:Link, 4:Imagen, 5:Desc, 6:Galeria, 7:Variantes
+            
+            products = [];
+
             for (let i = 1; i < lines.length; i++) {
-                // Regex para manejar comillas dentro del CSV
-                const matches = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-                if (!matches || matches.length < 5) continue;
+                // Truco: Usar una librería ligera o un split inteligente.
+                // Como JS nativo no tiene parser CSV, usamos un split por coma básico 
+                // PERO reconstruimos si hay comillas rotas (solución simple para rendimiento)
+                
+                // Nota: Tu CSV usa comillas para descripciones complejas. Usaré un parser de estado simple.
+                const row = parseCSVLine(lines[i]);
+                
+                if (!row || row.length < 5) continue;
 
-                const clean = (s) => s ? s.replace(/^"|"$/g, '').trim() : '';
+                const id = row[0];
+                const name = row[1];
+                let price = row[2];
+                const image = row[4];
+                const desc = row[5];
+                const variants = row[7] || "";
 
-                // Índices basados en tu CSV: 0:ID, 1:Nombre, 2:Precio, 3:Stock, 4:Link, 5:Img, 6:Desc...
-                const id = clean(matches[0]);
-                const name = clean(matches[1]);
-                let price = clean(matches[2]); // A veces vacío
-                const stockVal = clean(matches[3]);
-                const img = clean(matches[5]) || clean(matches[4]); // A veces img está en col 4 o 5
-                const variants = matches[8] ? clean(matches[8]) : ''; // Info Variantes
-                const desc = matches[6] ? clean(matches[6]) : '';
-
-                // Fallback de precio si viene vacío
-                if (!price && variants) {
-                    const priceMatch = variants.match(/R\$([\d\.,]+)/);
-                    price = priceMatch ? priceMatch[1].replace(',', '.') : '0.00';
+                // Lógica de Precio
+                if ((!price || price === '0.00' || price === '') && variants) {
+                    const match = variants.match(/R\$([\d\.]+)/);
+                    if (match) price = match[1];
                 }
+                
+                // Lógica de Stock (Escaneamos variantes buscando 'Stock:SI')
+                // Si no hay info, asumimos SI por defecto para no ocultar productos
+                const hasStock = variants.includes('Stock:SI') || !variants.includes('Stock:NO');
 
-                // Categorización
+                // Lógica Categoría
                 const fullText = (name + ' ' + desc).toLowerCase();
                 let cat = 'Otros';
-                if (fullText.includes('ciaflex') || fullText.includes('emborrachada')) cat = 'Emborrachada';
-                else if (fullText.includes('sintético') || fullText.includes('solvente') || fullText.includes('esmalte')) cat = 'Sintético';
-                else if (fullText.includes('acrílica') || fullText.includes('água') || fullText.includes('agua')) cat = 'Al Agua';
+                if (fullText.includes('ciaflex') || fullText.includes('emborrachada') || fullText.includes('impermeabilizante')) cat = 'Emborrachada';
+                else if (fullText.includes('sintético') || fullText.includes('sintetico') || fullText.includes('esmalte') || fullText.includes('solvente')) cat = 'Sintético';
+                else if (fullText.includes('acrílica') || fullText.includes('acrilica') || fullText.includes('água') || fullText.includes('agua')) cat = 'Al Agua';
 
-                // Traducción al vuelo
-                const translatedName = name
+                // Traducción
+                const cleanName = name
                     .replace(/Tinta/gi, 'Pintura')
                     .replace(/Fosco/gi, 'Mate')
                     .replace(/Brilhante/gi, 'Brillante')
                     .replace(/Demãos/gi, 'Manos');
 
-                data.push({
+                products.push({
                     id, 
-                    name: translatedName, 
+                    name: cleanName,
                     price: parseFloat(price) || 0,
-                    stock: stockVal === 'SI',
-                    img,
+                    stock: hasStock,
+                    image,
                     cat,
-                    searchStr: (id + ' ' + translatedName + ' ' + cat).toLowerCase()
+                    searchStr: (id + ' ' + cleanName + ' ' + cat).toLowerCase()
                 });
             }
-            return data;
+
+            initApp();
         }
 
-        // --- 3. RENDERIZADO UI ---
+        // Parser línea a línea que respeta comillas ("...")
+        function parseCSVLine(text) {
+            const result = [];
+            let start = 0;
+            let inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+                if (text[i] === '"') { inQuotes = !inQuotes; }
+                else if (text[i] === ',' && !inQuotes) {
+                    let field = text.substring(start, i);
+                    // Quitar comillas envolventes y dobles comillas
+                    if (field.startsWith('"') && field.endsWith('"')) {
+                        field = field.slice(1, -1).replace(/""/g, '"');
+                    }
+                    result.push(field.trim());
+                    start = i + 1;
+                }
+            }
+            // Último campo
+            let lastField = text.substring(start);
+            if (lastField.startsWith('"') && lastField.endsWith('"')) {
+                lastField = lastField.slice(1, -1).replace(/""/g, '"');
+            }
+            result.push(lastField.trim());
+            return result;
+        }
+
+        // 3. RENDERIZADO
         function initApp() {
-            document.getElementById('loader-screen').classList.add('hidden');
-            const main = document.getElementById('main-app');
-            main.classList.remove('hidden');
-            setTimeout(() => main.classList.remove('opacity-0'), 50); // Fade in
+            document.getElementById('loader').classList.add('hidden');
+            const app = document.getElementById('app');
+            app.classList.remove('hidden');
+            // Timeout para que la transición de opacidad funcione
+            setTimeout(() => app.classList.remove('opacity-0'), 50);
             
-            document.getElementById('total-count').innerText = products.length;
+            updateCounter();
             renderList(products);
         }
 
@@ -185,69 +214,67 @@
             const grid = document.getElementById('grid');
             grid.innerHTML = '';
             
-            // Fragmento para no redibujar el DOM por cada item (Performance)
+            if (items.length === 0) {
+                grid.innerHTML = `<div class="text-center py-10 text-slate-400">No hay productos que coincidan.</div>`;
+                return;
+            }
+
             const fragment = document.createDocumentFragment();
 
             items.forEach(p => {
-                const el = document.createElement('div');
-                el.className = 'bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex gap-3 items-center';
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex gap-4 transition-transform active:scale-[0.99]';
                 
-                // Color categoría
-                let badgeColor = 'bg-gray-100 text-gray-500';
-                if(p.cat === 'Al Agua') badgeColor = 'bg-blue-50 text-blue-600';
-                if(p.cat === 'Sintético') badgeColor = 'bg-orange-50 text-orange-600';
-                if(p.cat === 'Emborrachada') badgeColor = 'bg-teal-50 text-teal-600';
+                // Estilo según categoría
+                let badgeClass = 'bg-slate-100 text-slate-600';
+                if(p.cat === 'Al Agua') badgeClass = 'bg-blue-50 text-blue-600 ring-1 ring-blue-100';
+                if(p.cat === 'Sintético') badgeClass = 'bg-orange-50 text-orange-600 ring-1 ring-orange-100';
+                if(p.cat === 'Emborrachada') badgeClass = 'bg-teal-50 text-teal-600 ring-1 ring-teal-100';
 
-                // Checkbox Stock ID único
-                const toggleId = `toggle-${p.id}`;
-
-                el.innerHTML = `
-                    <div class="w-20 h-20 flex-shrink-0 bg-gray-50 rounded-lg p-1 flex items-center justify-center relative overflow-hidden">
-                        <img src="${p.img}" loading="lazy" class="max-w-full max-h-full object-contain" onerror="this.src='https://placehold.co/100?text=No+Img'">
+                card.innerHTML = `
+                    <div class="w-24 h-24 bg-slate-50 rounded-xl flex-shrink-0 p-2 flex items-center justify-center relative overflow-hidden">
+                        <img src="${p.image}" loading="lazy" class="max-w-full max-h-full object-contain mix-blend-multiply" onerror="this.style.opacity=0.2">
                     </div>
-
-                    <div class="flex-grow min-w-0">
-                        <div class="flex justify-between items-start">
-                            <span class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${badgeColor}">${p.cat}</span>
-                            <span class="text-[10px] text-gray-400 font-mono">#${p.id}</span>
+                    
+                    <div class="flex-grow flex flex-col justify-between min-w-0">
+                        <div>
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${badgeClass}">${p.cat}</span>
+                                <span class="text-[10px] font-mono text-slate-400">#${p.id}</span>
+                            </div>
+                            <h3 class="text-sm font-bold text-slate-800 leading-tight line-clamp-2">${p.name}</h3>
                         </div>
-                        <h3 class="text-sm font-semibold text-gray-800 leading-tight mt-1 truncate">${p.name}</h3>
-                        
-                        <div class="flex items-end justify-between mt-3">
-                            <div class="flex flex-col">
-                                <label class="text-[9px] text-gray-400 uppercase font-bold">Precio</label>
-                                <div class="flex items-baseline text-gray-800 font-bold">
+
+                        <div class="flex items-end justify-between mt-2 pt-3 border-t border-slate-50">
+                            <div>
+                                <label class="text-[9px] uppercase text-slate-400 font-bold block mb-0.5">Precio</label>
+                                <div class="flex items-baseline font-bold text-slate-700">
                                     <span class="text-xs mr-0.5">R$</span>
-                                    <input type="number" step="0.01" value="${p.price.toFixed(2)}" 
-                                        class="w-20 bg-transparent border-b border-gray-200 focus:border-blue-500 focus:outline-none py-0 text-base p-0 m-0">
+                                    <input type="number" value="${p.price.toFixed(2)}" class="w-20 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none p-0 text-base m-0">
                                 </div>
                             </div>
 
-                            <div class="flex items-center">
-                                <div class="relative inline-block w-10 align-middle select-none">
-                                    <input type="checkbox" id="${toggleId}" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 transition-all duration-300 top-0 left-0" ${p.stock ? 'checked' : ''}>
-                                    <label for="${toggleId}" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-200 cursor-pointer transition-colors duration-300"></label>
-                                </div>
+                            <div class="relative inline-block w-11 h-6">
+                                <input type="checkbox" id="sw-${p.id}" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 top-0.5 left-0.5 z-10" ${p.stock ? 'checked' : ''}>
+                                <label for="sw-${p.id}" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-200 cursor-pointer transition-colors duration-300"></label>
                             </div>
                         </div>
                     </div>
                 `;
-                fragment.appendChild(el);
+                fragment.appendChild(card);
             });
             grid.appendChild(fragment);
         }
 
-        // --- 4. FILTROS Y BÚSQUEDA ---
-        
+        // 4. LÓGICA FILTROS Y BÚSQUEDA
         function setFilter(cat) {
             currentFilter = cat;
-            // Actualizar botones
             document.querySelectorAll('.filter-chip').forEach(btn => {
-                const isSelected = (cat === 'all' && btn.innerText === 'Todos') || btn.innerText === cat;
-                if(isSelected) {
-                    btn.className = 'filter-chip active px-4 py-1.5 rounded-full text-xs font-bold bg-gray-800 text-white whitespace-nowrap transition-colors shadow-md';
+                // Estilos activo/inactivo
+                if( (cat === 'all' && btn.innerText === 'Todos') || btn.innerText === cat ) {
+                    btn.className = 'filter-chip active px-4 py-1.5 rounded-full text-xs font-bold bg-slate-800 text-white whitespace-nowrap transition-all shadow-md transform scale-105';
                 } else {
-                    btn.className = 'filter-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white text-gray-600 border border-gray-200 whitespace-nowrap transition-colors';
+                    btn.className = 'filter-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200 whitespace-nowrap transition-all hover:bg-slate-50';
                 }
             });
             filterItems();
@@ -262,7 +289,12 @@
                 const matchSearch = p.searchStr.includes(term);
                 return matchCat && matchSearch;
             });
+            updateCounter(filtered.length);
             renderList(filtered);
+        }
+
+        function updateCounter(count = products.length) {
+            document.getElementById('counter').innerText = count;
         }
 
     </script>
