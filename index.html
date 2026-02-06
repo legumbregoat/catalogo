@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Panel Ciacollor - Gestión de Stock</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
+        /* Optimización para móviles: Switch de iOS Style */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #10B981;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #10B981;
+        }
+        
+        /* Ajuste para evitar zoom en inputs en iPhone */
+        input[type="text"], input[type="number"] {
+            font-size: 16px;
+        }
+
+        /* Animación suave para las tarjetas */
+        .product-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .product-card:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body class="pb-20">
+
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex justify-between items-center mb-3">
+                <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph-fill ph-paint-bucket text-blue-600"></i> Ciacollor Admin
+                </h1>
+                <span id="product-count" class="text-xs font-semibold bg-gray-200 text-gray-600 px-2 py-1 rounded-full">0 prods</span>
+            </div>
+
+            <div class="relative mb-3">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="ph ph-magnifying-glass text-gray-400"></i>
+                </div>
+                <input type="text" id="search-input" 
+                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out" 
+                    placeholder="Buscar por ID, nombre, uso (ej: metal)...">
+            </div>
+
+            <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar" id="filter-container">
+                <button onclick="filterCategory('all')" class="filter-btn active whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium bg-blue-600 text-white shadow-sm ring-1 ring-blue-600 transition-all">
+                    Todos
+                </button>
+                <button onclick="filterCategory('Emborrachada')" class="filter-btn whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium bg-white text-gray-700 shadow-sm ring-1 ring-gray-300 hover:bg-gray-50 transition-all">
+                    Emborrachada
+                </button>
+                <button onclick="filterCategory('Al Agua')" class="filter-btn whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium bg-white text-gray-700 shadow-sm ring-1 ring-gray-300 hover:bg-gray-50 transition-all">
+                    Al Agua
+                </button>
+                <button onclick="filterCategory('Sintético')" class="filter-btn whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium bg-white text-gray-700 shadow-sm ring-1 ring-gray-300 hover:bg-gray-50 transition-all">
+                    Sintético
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div class="text-center py-10 text-gray-500 col-span-full">
+                <i class="ph ph-spinner animate-spin text-3xl"></i>
+                <p class="mt-2">Cargando catálogo...</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg text-sm opacity-0 transition-opacity duration-300 pointer-events-none z-50">
+        Cambio guardado
+    </div>
+
+    <script>
+        // --- 1. DATOS DEL CSV (Procesados e incrustados para velocidad) ---
+        // Se ha limpiado el CSV original para extraer los datos clave directamente.
+        const rawCsvData = `ID,Nombre,Precio,Stock_General,Imagen_Base,Info_Variantes,Descripcion
+2109,Tinta Acrílica Emborrachada Fundo e Acabamento Ciaflex Ciacollor 20kg,,SI,https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_emborrachada_ciacollor_20kg_2109_1_9f894b5ff4fccf9f785014ad04918a0f.png,"Cor: Elefante [R$503.26] (Stock:SI)","Ciaflex Fundo e Acabamento Ciacollor... paredes de alvenaria e telhados metálicos."
+2073,Tinta Acrílica Econômica Profissional Fosco Ciacollor 16lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_economica_profissional_fosco_ciacollor_16_l_2073_1_eb2c72aea432510f9efe1220835a3c46.png,"Cor: Elefante [R$168.81]","Tinta Acrílica Econômica... acabamento fosco e uniforme"
+2077,Tinta Acrílica Performance Fosco Ciacollor 18lt,,SI,https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_performance_fosco_ciacollor_18_l_2077_1_e92923bc7a843f1b026f1a1bec844bd4.png,"Cor: Elefante [R$326.81]","Tinta Acrílica Performance Standard Fosco... áreas internas e externas"
+2163,Resina Eco Base Água Ciacollor 18lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/resina_eco_base_agua_ciacollor_18lt_2163_1_07cf08ae947eeb1503faa3b0f69ab87f.png,"Cor: Branco [R$285.07]","resina acrílica brilhante a base de água... telhas cerâmicas"
+2153,Selador Emborrachado Ciaflex Ciacollor 18kg,,SI,https://images.tcdn.com.br/img/img_prod/1139809/selador_acrilico_emborrachado_ciaflex_ciacollor_18kg_2153_1_55e772bde97e5640dd2494a08dd9dac4.png,,O Selador Emborrachado Ciaflex... paredes de alvenaria
+2075,Tinta Acrílica Econômica Profissional Fosco Ciacollor 3,6lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_economica_profissional_fosco_ciacollor_3_6_l_2075_1_5c73eaa4c1d34c54168f1b2f42254d81.png,"Cor: Elefante [R$56.67]","acabamento fosco... toque moderno"
+2167,Resina Eco Base Água Ciacollor 3,6lt,,SI,https://images.tcdn.com.br/img/img_prod/1139809/resina_eco_base_agua_ciacollor_3_6lt_2167_1_bc3159611c212772644319b13ca142a6.png,"Cor: Branco [R$70.86]","resina acrílica brilhante a base de água"
+2111,Tinta Acrílica Emborrachada Fundo e Acabamento Ciaflex Ciacollor 3,6kg,,NO,https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_emborrachada_ciacollor_3_6kg_2111_1_c533bf16a35666853bb773e38f999f46.png,"Cor: Elefante [R$124.41]","protege paredes de alvenaria e telhados"
+4065,Efeito Mármore Base Branco Ciacollor 3,6lt,,SI,https://images.tcdn.com.br/img/img_prod/1139809/efeito_marmore_base_branco_ciacollor_3_6lt_4065_1_bbeb5a97e466c79e920ab629cbbad0bb.png,,Revestimento acrílico a base de água... imitam o mármore
+2485,Massa Acrílica Emborrachada Ciaflex Ciacollor 23kg,,NO,https://images.tcdn.com.br/img/img_prod/1139809/massa_acrilica_emborrachada_ciaflex_ciacollor_25kg_2485_1_388921830f4a22628baaf85694ee24bc.png,,"Massa Acrílica Emborrachada Ciaflex... corrigir imperfeições"
+2123,Tinta Acrílica Performance Semi-Brilho Ciacollor 18lt,,SI,https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_performance_semi_brilho_ciacollor_18lt_2123_1_e92923bc7a843f1b026f1a1bec844bd4.png,"Cor: Branco Neve [R$517.58]","Acabamento acetinado... áreas internas e externas"
+2079,Tinta Acrílica Performance Fosco Ciacollor 3,6lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_performance_fosco_ciacollor_3_6_l_2079_1_d6de6a24d05fef1fcf66cb012b686667.png,"Cor: Pimenta [R$83.12]","Acabamento fosco de qualidade"
+2083,Tinta Acrílica Ciaturbo Fosco Ciacollor 18lt,,SI,https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_ciaturbo_ciacollor_18l_2083_1_0cb98a1f80fa3b40b62fd3a378d6d260.png,"Cor: Marfim [R$241.22]","acabamento uniforme e sofisticado"
+4262,Kit Esmalte Epóxi Poliamida 3x1 + Catalisador Ciacollor 3,6Lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/kit_esmalte_epoxi_poliamida_3x1_catalisador_ciacollor_3_6lt_4262_1_6b155e8c66545d9b8a8d2536f710d02e.png,"Cor: Cinza [R$346.95]","Superfícies metálicas... Pisos de concreto"
+2155,Impermeabilizante Emborrachado Ciaflex Paredes Ciacollor 18kg,,SI,https://images.tcdn.com.br/img/img_prod/1139809/impermeabilizante_emborrachado_ciaflex_paredes_ciacollor_18kg_2155_1_cc1f33bd04e1170464de4c383a5ffa0d.png,"Cor: Branco [R$353.55]","impermeabilizante acrílico emborrachado"
+3841,Esmalte Base Água Fosco Ciacollor 3,6lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/esmalte_base_agua_fosco_ciacollor_3_6lt_3841_1_7d8e997189582a223640006f051820b6.png,"Cor: Branco [R$180.91]","superfícies de metais ferrosos, madeira"
+3883,Esmalte Base Água Brilhante Ciacollor 0,9lt,,SI,https://images.tcdn.com.br/img/img_prod/1139809/esmalte_base_agua_brilhante_ciacollor_0_9lt_3883_1_5bdd93c5c31faa54b045860a3dfa23ee.png,"Cor: Branco [R$53.01]","Madeira, metais, alumínio"
+3637,Fundo Sintético Nivelador Ciacollor 3,6lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/fundo_sintetico_nivelador_ciacollor_3_6lt_3637_1_890dd18df9a8bb4990d75059b728af39.png,,"Fundo Sintético... diluir com aguarráz"
+2487,Massa Acrílica Emborrachada Ciaflex Ciacollor 6kg,,SI,https://images.tcdn.com.br/img/img_prod/1139809/massa_acrilica_emborrachada_ciaflex_ciacollor_6kg_2487_1_c10f58e6a0b7fde63debd31e72500667.png,,"polímeros elastoméricos... nivelar e corrigir"
+2225,Spray Uso Geral Metálico Ciacollor 400ml,,NO,https://images.tcdn.com.br/img/img_prod/1139809/spray_uso_geral_metalico_ciacollor_400ml_2225_1_157b689817047b2e7e4d82f583a832ca.png,"Cor: Cobre [R$23.28]","aço, ferro e alumínio... peças de artesanato"
+2175,Resina Multiuso Base Solvente Ciacollor 18lt,,SI,https://images.tcdn.com.br/img/img_prod/1139809/resina_multiuso_base_solvente_ciacollor_18lt_2175_1_b6d4cc79df77d4508fb995b5e2248a46.png,"Cor: Incolor [R$679.14]","Pisos cimentados... Telhas cerâmicas"
+2169,Massa Corrida Ciacollor 0,9lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/massa_corrida_pva_premium_interior_0_9lt_2169_1_14abe6f31d215ad60bf11b4ad0248928.png,,"paredes e tetos de alvenaria... áreas internas"
+2161,Impermeabilizante Base Solvente Ciabloq Ciacollor 0,9lt,,SI,https://images.tcdn.com.br/img/img_prod/1139809/impermeabilizante_base_solvente_ciabloq_ciacollor_0_9lt_2161_1_a29550c8a4a501f33abce51620c7312c.png,,"bloquear a umidade... base solvente"
+4420,Revitalizador De Cristais ForteMais 16lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/revitalizador_de_cristais_fortemais_16lt_4420_1_3a3ef8b29bd33fe766164fa32db39939.png,,"restaurar e melhorar a aparência... Cristais, Pedras"
+4067,Efeito Mármore Base Branco Ciacollor 0,9lt,,SI,https://images.tcdn.com.br/img/img_prod/1139809/efeito_marmore_base_branco_ciacollor_0_9lt_4067_1_57c9f1eb8070e5f248c9361e97f991d8.png,,"efeitos especiais que imitam o mármore"
+3889,Esmalte Base Água Acetinado Ciacollor 3,6lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/esmalte_base_agua_acetinado_ciacollor_3_6lt_3889_1_7d8e997189582a223640006f051820b6.png,"Cor: Branco [R$176.40]","metais ferrosos, madeira... acetinado"
+3887,Esmalte Base Água Brilhante Ciacollor 3,6lt,,SI,https://images.tcdn.com.br/img/img_prod/1139809/esmalte_base_agua_brilhante_ciacollor_3_6lt_3887_1_7d8e997189582a223640006f051820b6.png,"Cor: Branco [R$176.40]","metais ferrosos, madeira... brilhante"
+3851,Revitalizador De Cristais Ciacollor 3,6lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/revitalizador_de_cristais_ciacollor_3_6lt_3851_1_c1b47619aec4fea818b3fc50d9d1932f.png,,"aplicação em pedras naturais... base água"
+2801,Spray Uso Geral Semi-Brilho Ciacollor 400ml,,SI,https://images.tcdn.com.br/img/img_prod/1139809/spray_uso_geral_semi_brilho_ciacollor_400ml_2801_1_157b689817047b2e7e4d82f583a832ca.png,"Cor: Preto [R$24.98]","superfícies de madeira, metais"
+2183,Resina Multiuso Base Solvente Ciacollor 3,6lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/resina_multiuso_base_solvente_ciacollor_3_6lt_2183_1_890dd18df9a8bb4990d75059b728af39.png,"Cor: Incolor [R$169.82]","acabamento brilhante... base solvente"
+2157,Impermeabilizante Emborrachado Ciaflex Paredes Ciacollor 3,6kg,,SI,https://images.tcdn.com.br/img/img_prod/1139809/impermeabilizante_emborrachado_ciaflex_paredes_ciacollor_3_6kg_2157_1_e71dd152213acccb60623d526dfe6bd1.png,"Cor: Branco [R$96.96]","elasticidade acompanha as movimentações"
+2129,Tinta Acrílica Suprema Acetinado Ciacollor 3,6lt,,NO,https://images.tcdn.com.br/img/img_prod/1139809/copia_tinta_acrilica_suprema_acetinado_ciacollor_3_6lt_2129_1_cfdeb270c3e238186dbfd6383fa072c6.png,"Cor: Branco [R$130.34]","Acabamento acetinado... ótima cobertura"
+2125,Tinta Acrílica Performance Semi-Brilho Ciacollor 3,6lt,,SI,https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_performance_fosco_ciacollor_3_6lt_2125_1_d6de6a24d05fef1fcf66cb012b686667.png,"Cor: Branco [R$131.42]","Para ambientes internos e externos"
+2113,Tinta Acrílica Emborrachada Fundo e Acabamento Ciaflex Ciacollor 0,9kg,,NO,https://images.tcdn.com.br/img/img_prod/1139809/tinta_acrilica_emborrachada_ciacollor_0_9kg_2113_1_f22e44f2985e1c526cfd1cf482924860.png,"Cor: Branco [R$39.50]","fundo e acabamento emborrachado"`;
+
+        let products = [];
+        let currentFilter = 'all';
+
+        // --- 2. LÓGICA DE PROCESAMIENTO ---
+
+        function parseCSV(csv) {
+            const lines = csv.split('\n');
+            const result = [];
+            // Ignoramos la primera línea (cabeceras)
+            for (let i = 1; i < lines.length; i++) {
+                // Regex simple para parsear CSV respetando comillas
+                const matches = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                if (!matches || matches.length < 5) continue;
+
+                const clean = (str) => str ? str.replace(/^"|"$/g, '').trim() : '';
+
+                // Mapeo manual basado en el string rawCsvData
+                const id = clean(matches[0]);
+                const name = clean(matches[1]);
+                let price = clean(matches[2]);
+                const stock = clean(matches[3]);
+                const img = clean(matches[4]);
+                const variants = clean(matches[5]);
+                const desc = clean(matches[6]);
+
+                // Lógica de Precio: Si está vacío, intentar sacarlo de variantes
+                if (!price || price.trim() === '') {
+                    const priceMatch = variants.match(/R\$([\d\.]+)/);
+                    price = priceMatch ? priceMatch[1] : '0.00';
+                }
+
+                // Lógica de Categorización
+                let category = 'Otros';
+                const textToScan = (name + ' ' + desc).toLowerCase();
+                
+                if (textToScan.includes('ciaflex') || textToScan.includes('emborrachada')) {
+                    category = 'Emborrachada';
+                } else if (textToScan.includes('sintético') || textToScan.includes('solvente') || textToScan.includes('aguarrás') || textToScan.includes('thinner') || textToScan.includes('esmalte') || textToScan.includes('epóxi')) {
+                    category = 'Sintético';
+                } else if (textToScan.includes('acrílica') || textToScan.includes('água') || textToScan.includes('agua') || textToScan.includes('economica')) {
+                    category = 'Al Agua';
+                }
+
+                result.push({
+                    id: id,
+                    name: translateText(name),
+                    rawName: name.toLowerCase() + ' ' + desc.toLowerCase(), // Para búsqueda
+                    price: parseFloat(price).toFixed(2),
+                    stock: stock === 'SI', // Boolean
+                    image: img,
+                    category: category
+                });
+            }
+            return result;
+        }
+
+        // Traductor simple de términos técnicos
+        function translateText(text) {
+            return text
+                .replace(/Fosco/gi, "Mate")
+                .replace(/Brilhante/gi, "Brillante")
+                .replace(/Emborrachada/gi, "Impermeabilizante")
+                .replace(/Água/gi, "Agua")
+                .replace(/Demãos/gi, "Manos")
+                .replace(/Tinta/gi, "Pintura");
+        }
+
+        // --- 3. FUNCIONES DE UI ---
+
+        function init() {
+            products = parseCSV(rawCsvData);
+            document.getElementById('product-count').textContent = `${products.length} prods`;
+            renderProducts(products);
+            
+            // Event Listeners
+            document.getElementById('search-input').addEventListener('input', (e) => handleSearch(e.target.value));
+        }
+
+        function renderProducts(items) {
+            const grid = document.getElementById('product-grid');
+            grid.innerHTML = '';
+
+            if (items.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-10">No se encontraron productos.</div>`;
+                return;
+            }
+
+            // Usamos DocumentFragment para mejor rendimiento al renderizar muchos items
+            const fragment = document.createDocumentFragment();
+
+            items.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-full';
+                
+                // Color de borde según categoría
+                let catColor = 'bg-gray-100 text-gray-600';
+                if(product.category === 'Al Agua') catColor = 'bg-blue-100 text-blue-700';
+                if(product.category === 'Sintético') catColor = 'bg-orange-100 text-orange-700';
+                if(product.category === 'Emborrachada') catColor = 'bg-teal-100 text-teal-700';
+
+                card.innerHTML = `
+                    <div class="relative h-48 bg-white p-4 flex items-center justify-center border-b border-gray-100">
+                        <span class="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-md ${catColor}">
+                            ${product.category}
+                        </span>
+                        <img src="${product.image}" loading="lazy" alt="${product.name}" class="max-h-full object-contain hover:scale-105 transition-transform duration-300">
+                    </div>
+                    
+                    <div class="p-4 flex flex-col flex-grow">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs text-gray-400 font-mono">ID: ${product.id}</span>
+                        </div>
+                        
+                        <h3 class="font-semibold text-gray-800 text-sm leading-tight mb-4 flex-grow line-clamp-2" title="${product.name}">
+                            ${product.name}
+                        </h3>
+
+                        <div class="flex items-end justify-between gap-3 mt-auto pt-3 border-t border-gray-100">
+                            <div class="w-1/2">
+                                <label class="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Precio (R$)</label>
+                                <div class="relative mt-1">
+                                    <input type="number" step="0.01" 
+                                        value="${product.price}" 
+                                        onchange="updatePrice('${product.id}', this.value)"
+                                        class="w-full text-sm font-bold text-gray-800 border-b border-gray-300 focus:border-blue-500 bg-transparent py-1 transition-colors">
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col items-end">
+                                <label class="text-[10px] uppercase text-gray-400 font-bold tracking-wider mb-1">Disp.</label>
+                                <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" name="toggle" id="toggle-${product.id}" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 transition-all duration-300" 
+                                        ${product.stock ? 'checked' : ''}
+                                        onchange="toggleStock('${product.id}')"/>
+                                    <label for="toggle-${product.id}" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                fragment.appendChild(card);
+            });
+
+            grid.appendChild(fragment);
+        }
+
+        // --- 4. FILTRADO Y BÚSQUEDA ---
+
+        function filterCategory(category) {
+            currentFilter = category;
+            
+            // Actualizar botones visualmente
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if ((category === 'all' && btn.innerText === 'Todos') || btn.innerText === category) {
+                    btn.classList.add('bg-blue-600', 'text-white', 'ring-blue-600');
+                    btn.classList.remove('bg-white', 'text-gray-700', 'ring-gray-300');
+                } else {
+                    btn.classList.remove('bg-blue-600', 'text-white', 'ring-blue-600');
+                    btn.classList.add('bg-white', 'text-gray-700', 'ring-gray-300');
+                }
+            });
+
+            applyFilters();
+        }
+
+        // Debounce para búsqueda (espera a que el usuario termine de escribir)
+        let debounceTimer;
+        function handleSearch(query) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                applyFilters(query);
+            }, 300);
+        }
+
+        function applyFilters(searchQuery = document.getElementById('search-input').value) {
+            const query = searchQuery.toLowerCase();
+            
+            const filtered = products.filter(p => {
+                const matchesCategory = currentFilter === 'all' || p.category === currentFilter;
+                const matchesSearch = p.id.includes(query) || p.rawName.includes(query);
+                return matchesCategory && matchesSearch;
+            });
+
+            renderProducts(filtered);
+        }
+
+        // --- 5. ACCIONES DE EDICIÓN ---
+
+        function updatePrice(id, newPrice) {
+            // Simulación de guardado asíncrono
+            const product = products.find(p => p.id === id);
+            if (product) {
+                product.price = newPrice;
+                console.log(`Precio actualizado ID ${id}: ${newPrice}`);
+                showToast();
+            }
+        }
+
+        function toggleStock(id) {
+            const product = products.find(p => p.id === id);
+            if (product) {
+                product.stock = !product.stock;
+                console.log(`Stock actualizado ID ${id}: ${product.stock}`);
+                showToast();
+            }
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 2000);
+        }
+
+        // Inicializar
+        init();
+
+        // Widget simple de Google Translate (Opcional, si se desea traducción completa de página)
+        // Por ahora, la función translateText maneja lo crítico.
+    </script>
+</body>
+</html>
