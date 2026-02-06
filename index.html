@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Catálogo Ciacollor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .toggle-checkbox:checked { right: 0; border-color: #10B981; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #10B981; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Animación Modal */
+        .modal-enter { opacity: 0; transform: scale(0.95); pointer-events: none; }
+        .modal-active { opacity: 1; transform: scale(1); pointer-events: auto; }
+        .modal-overlay { background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body class="pb-32 text-slate-800">
+
+    <div id="modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center modal-enter transition-all duration-300">
+        <div class="modal-overlay absolute inset-0" onclick="closeModal()"></div>
+        
+        <div class="bg-white w-full max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <div>
+                    <span id="m-id" class="text-xs font-mono text-gray-400">ID: 0000</span>
+                    <h2 id="m-title" class="font-bold text-lg leading-tight text-gray-800">Nombre del Producto</h2>
+                </div>
+                <button onclick="closeModal()" class="p-2 bg-gray-200 rounded-full text-gray-600 hover:bg-gray-300 transition">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto p-5 space-y-6">
+                
+                <div>
+                    <h3 class="text-xs font-bold uppercase text-gray-400 mb-2 flex items-center gap-2">
+                        <i class="ph-fill ph-image"></i> Gestión de Imágenes
+                    </h3>
+                    
+                    <div class="bg-gray-100 rounded-xl p-4 flex justify-center mb-3 relative group">
+                        <img id="m-image" src="" class="max-h-48 object-contain shadow-sm rounded-lg">
+                        <div class="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">Vista Actual</div>
+                    </div>
+
+                    <label class="flex items-center justify-center w-full p-3 border-2 border-dashed border-blue-300 rounded-xl bg-blue-50 text-blue-600 font-semibold cursor-pointer active:scale-95 transition-transform">
+                        <i class="ph-bold ph-upload-simple mr-2"></i> Subir / Previsualizar
+                        <input type="file" accept="image/*" class="hidden" onchange="previewImage(this)">
+                    </label>
+                    <p class="text-[10px] text-gray-400 mt-1 text-center">
+                        *Para guardar permanentemente en GitHub: nombra la foto como <strong><span id="m-id-filename">ID</span>.jpg</strong> y súbela a la carpeta 'imagenes'.
+                    </p>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold uppercase text-gray-400 mb-2 flex items-center gap-2">
+                        <i class="ph-fill ph-translate"></i> Descripción (Español)
+                    </h3>
+                    <div id="m-desc" class="text-sm text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-gray-100 bg-white flex justify-between items-center">
+                <span class="text-sm text-gray-500">Precio Actual:</span>
+                <span id="m-price" class="text-2xl font-bold text-blue-600">R$ 0.00</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="app" class="hidden opacity-0 transition-opacity duration-700">
+        <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40">
+            <div class="max-w-2xl mx-auto px-4 py-3">
+                <div class="flex justify-between items-center mb-3">
+                    <h1 class="font-bold text-lg text-slate-900 flex gap-2 items-center">
+                        <i class="ph-fill ph-paint-bucket text-blue-600"></i> Ciacollor
+                    </h1>
+                    <span id="counter" class="text-xs bg-slate-100 px-2 py-1 rounded-md">0 prods</span>
+                </div>
+                <input type="text" id="search" class="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Buscar...">
+            </div>
+        </header>
+
+        <main class="max-w-2xl mx-auto px-4 py-6">
+            <div id="grid" class="grid grid-cols-1 gap-3"></div>
+        </main>
+    </div>
+
+    <script>
+        const CSV_URL = 'catalogo.csv?v=' + new Date().getTime();
+        let products = [];
+
+        // --- 1. CARGA DE DATOS ---
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch(CSV_URL);
+                if (!response.ok) throw new Error("Falta catalogo.csv");
+                const buffer = await response.arrayBuffer();
+                const text = new TextDecoder('utf-8').decode(buffer);
+                parseAndRender(text);
+                document.getElementById('app').classList.remove('hidden');
+                setTimeout(() => document.getElementById('app').classList.remove('opacity-0'), 100);
+            } catch (err) {
+                alert("Error: Sube 'catalogo.csv' al repositorio.");
+            }
+        });
+
+        // --- 2. PROCESAMIENTO INTELIGENTE ---
+        function parseAndRender(csvText) {
+            const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
+            products = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const row = parseCSVLine(lines[i]);
+                if (!row || row.length < 5) continue;
+
+                // Mapeo según tu CSV
+                const id = row[0];
+                const name = row[1];
+                let price = row[2];
+                const link = row[3]; 
+                const image = row[4];
+                const desc = row[5]; 
+                // A veces la variante está en la col 7 o 8 dependiendo del formato exacto, buscamos el precio donde sea
+                const variants = row.join(' '); 
+
+                // Precio Fallback
+                if ((!price || price === '') && variants) {
+                    const match = variants.match(/R\$([\d\.]+)/);
+                    if (match) price = match[1];
+                }
+
+                // Categoría
+                let cat = 'Otros';
+                const fullText = (name + ' ' + desc).toLowerCase();
+                if (fullText.includes('emborrachada') || fullText.includes('ciaflex')) cat = 'Emborrachada';
+                else if (fullText.includes('sintético') || fullText.includes('esmalte')) cat = 'Sintético';
+                else if (fullText.includes('acrílica') || fullText.includes('água')) cat = 'Al Agua';
+
+                // Traducción Título
+                const esName = name.replace(/Tinta/gi, 'Pintura').replace(/Fosco/gi, 'Mate').replace(/Brilhante/gi, 'Brillante');
+
+                products.push({
+                    id, name: esName, price: parseFloat(price) || 0,
+                    image, desc, cat,
+                    searchStr: (id + ' ' + esName).toLowerCase()
+                });
+            }
+            renderList(products);
+        }
+
+        // Parser CSV que respeta comillas "..."
+        function parseCSVLine(text) {
+            const result = [];
+            let start = 0, inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+                if (text[i] === '"') inQuotes = !inQuotes;
+                else if (text[i] === ',' && !inQuotes) {
+                    result.push(cleanField(text.substring(start, i)));
+                    start = i + 1;
+                }
+            }
+            result.push(cleanField(text.substring(start)));
+            return result;
+        }
+        const cleanField = (s) => s.replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+
+        // --- 3. RENDERIZADO DE LISTA ---
+        function renderList(items) {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            document.getElementById('counter').innerText = items.length + ' prods';
+
+            items.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex gap-4 active:bg-blue-50 transition-colors cursor-pointer';
+                
+                // CLICK EN TARJETA -> ABRE MODAL
+                card.onclick = (e) => {
+                    // Evitar abrir si clickea el switch o input
+                    if(e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return;
+                    openModal(p);
+                };
+
+                card.innerHTML = `
+                    <div class="w-20 h-20 bg-gray-50 rounded-lg p-1 flex-shrink-0 flex items-center justify-center">
+                        <img src="${p.image}" class="max-w-full max-h-full object-contain mix-blend-multiply" onerror="this.style.opacity=0.3">
+                    </div>
+                    <div class="flex-grow min-w-0">
+                        <div class="flex justify-between">
+                            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">${p.cat}</span>
+                            <span class="text-[10px] text-gray-400">#${p.id}</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-800 leading-tight mt-1 line-clamp-2">${p.name}</h3>
+                        <div class="mt-2 font-bold text-slate-700">R$ ${p.price.toFixed(2)}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // --- 4. TRADUCTOR Y LIMPIEZA (LA MAGIA) ---
+        function translateDescription(html) {
+            // 1. Limpiar HTML sucio (quitar tags div, span, styles) para dejar texto limpio
+            let text = html.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+            
+            // 2. Diccionario Portugués -> Español
+            const dictionary = {
+                "parede": "pared", "paredes": "paredes",
+                "teto": "techo", "tetos": "techos",
+                "chão": "suelo", "piso": "piso",
+                "secagem": "secado",
+                "demão": "mano", "demãos": "manos",
+                "água": "agua",
+                "sujeira": "suciedad",
+                "mofo": "moho",
+                "reboco": "revoque",
+                "rendimento": "rendimiento",
+                "aplicação": "aplicación",
+                "ferramentas": "herramientas",
+                "trincha": "brocha",
+                "rolo": "rodillo",
+                "brilho": "brillo",
+                "madeira": "madera",
+                "telhados": "techos/tejados",
+                "alvenaria": "albañilería/mampostería",
+                "fissuras": "fisuras",
+                "ambiente": "ambiente",
+                "externo": "externo",
+                "interno": "interno",
+                "superfície": "superficie"
+            };
+
+            // Aplicar traducción
+            for (const [pt, es] of Object.entries(dictionary)) {
+                const regex = new RegExp(pt, "gi");
+                text = text.replace(regex, es);
+            }
+
+            return text;
+        }
+
+        // --- 5. CONTROL DEL MODAL ---
+        function openModal(product) {
+            const modal = document.getElementById('modal');
+            
+            // Llenar datos
+            document.getElementById('m-id').textContent = `ID: ${product.id}`;
+            document.getElementById('m-id-filename').textContent = product.id; // Para instrucciones
+            document.getElementById('m-title').textContent = product.name;
+            document.getElementById('m-price').textContent = `R$ ${product.price.toFixed(2)}`;
+            
+            // Imagen: Intentar cargar la del CSV, si falla mostrar placeholder
+            const imgEl = document.getElementById('m-image');
+            imgEl.src = product.image;
+            imgEl.onerror = () => { imgEl.src = 'https://placehold.co/400x300?text=Sin+Imagen'; };
+
+            // Descripción: Traducir al vuelo
+            const translated = translateDescription(product.desc || "Sin descripción disponible.");
+            document.getElementById('m-desc').textContent = translated;
+
+            // Mostrar con animación
+            modal.classList.add('modal-active');
+            modal.classList.remove('modal-enter');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            modal.classList.remove('modal-active');
+            modal.classList.add('modal-enter');
+        }
+
+        // --- 6. SUBIDA DE IMAGEN (PREVIEW) ---
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('m-image').src = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Buscador
+        document.getElementById('search').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = products.filter(p => p.searchStr.includes(term));
+            renderList(filtered);
+        });
+
+    </script>
+</body>
+</html>
